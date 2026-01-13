@@ -1,0 +1,22 @@
+[Desktop Entry]
+Type=Application
+Name=Notification Applet
+Name[de]=Benachrichtigungs-Applet
+Name[es]=Applet de Notificaciones
+Name[fr]=Applet de Notifications
+Name[it]=Applet di Notifiche
+Name[pt]=Applet de Notificações
+Comment=Custom notification display for COSMIC Desktop
+Comment[de]=Benutzerdefinierte Benachrichtigungsanzeige für COSMIC Desktop
+Comment[es]=Visualización personalizada de notificaciones para COSMIC Desktop
+Comment[fr]=Affichage de notifications personnalisé pour COSMIC Desktop
+Exec=cosmic-applet-notifications
+Icon=com.system76.CosmicAppletNotifications
+Terminal=false
+Categories=COSMIC;
+Keywords=COSMIC;Notifications;Panel;Applet;
+StartupNotify=false
+NoDisplay=true
+X-CosmicApplet=true
+X-CosmicAppletHoverPopup=Auto
+X-CosmicAppletPriority=5

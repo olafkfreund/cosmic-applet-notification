@@ -1,0 +1,80 @@
+[package]
+name = "cosmic-applet-notifications"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["Your Name <your.email@example.com>"]
+description = "Custom notification display applet for COSMIC Desktop"
+license = "GPL-3.0-only"
+repository = "https://github.com/yourusername/cosmic-notification-applet"
+keywords = ["cosmic", "desktop", "notifications", "applet", "wayland"]
+categories = ["gui", "desktop-environment"]
+
+[dependencies]
+# COSMIC Desktop toolkit
+libcosmic = { git = "https://github.com/pop-os/libcosmic", features = ["applet", "tokio"] }
+
+# D-Bus communication
+zbus = { version = "4", features = ["tokio"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+
+# Date/Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Configuration (will use cosmic-config when available)
+ron = "0.8"  # Rusty Object Notation
+
+# URL parsing (for clickable URLs)
+url = "2"
+
+# Icon handling
+freedesktop-icons = "0.2"
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
+tempfile = "3"
+pretty_assertions = "1"
+
+# Mocking
+mockall = "0.12"
+
+[profile.dev]
+opt-level = 0
+debug = true
+split-debuginfo = "unpacked"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.bench]
+inherits = "release"
+
+# Faster compile times for development
+[profile.dev.package."*"]
+opt-level = 3
+
+[[bin]]
+name = "cosmic-applet-notifications"
+path = "src/main.rs"
+
+# Metadata for Nix packaging
+[package.metadata.nix]
+build = true
+app = true

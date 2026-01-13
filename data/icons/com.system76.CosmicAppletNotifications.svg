@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" version="1.1" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Placeholder notification icon -->
+  <g transform="translate(0,-988.36)">
+    <!-- Bell shape -->
+    <path d="m32 996.36c-8 0-14 6-14 14v8c0 2-2 4-4 4v2h36v-2c-2 0-4-2-4-4v-8c0-8-6-14-14-14z" 
+          fill="#3584e4" 
+          stroke="#1a5fb4" 
+          stroke-width="2"/>
+    
+    <!-- Bell clapper -->
+    <circle cx="32" cy="1046.4" r="3" fill="#3584e4" stroke="#1a5fb4" stroke-width="1"/>
+    
+    <!-- Notification badge -->
+    <circle cx="46" cy="1002.4" r="6" fill="#e01b24" stroke="#a51d2d" stroke-width="1.5"/>
+    <text x="46" y="1006.4" 
+          font-family="sans-serif" 
+          font-size="8" 
+          font-weight="bold" 
+          fill="#ffffff" 
+          text-anchor="middle">!</text>
+  </g>
+</svg>

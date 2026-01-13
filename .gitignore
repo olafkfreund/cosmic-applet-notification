@@ -1,0 +1,48 @@
+# Rust build artifacts
+/target
+**/*.rs.bk
+*.pdb
+# Note: We keep Cargo.lock since this is a binary application
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Nix
+result
+result-*
+.direnv/
+
+# Build artifacts
+flamegraph.svg
+perf.data
+perf.data.old
+
+# Logs
+*.log
+
+# Configuration (user-specific)
+.env
+.envrc.local
+
+# Testing & Coverage
+test-output/
+*.profraw
+*.profdata
+/coverage/
+lcov.info
+tarpaulin-report.html
+/target/criterion/
+
+# Documentation build
+/book
+/target/doc/
+
+# Backup files
+*.bak
+*.backup
+*~
