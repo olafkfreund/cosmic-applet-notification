@@ -19,6 +19,7 @@ zbus = { version = "4", features = ["tokio"] }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
+futures = "0.3"
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

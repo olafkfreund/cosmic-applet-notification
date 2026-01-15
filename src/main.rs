@@ -31,11 +31,18 @@ pub enum Message {
     /// Close the popup
     ClosePopup,
 
-    /// A new notification was received (TODO: implement)
-    // NotificationReceived(Notification),
+    /// A new notification was received from D-Bus
+    NotificationReceived(dbus::Notification),
 
     /// Tick for periodic updates
     Tick,
+}
+
+// Implement From<Notification> for Message to work with subscription
+impl From<dbus::Notification> for Message {
+    fn from(notification: dbus::Notification) -> Self {
+        Message::NotificationReceived(notification)
+    }
 }
 
 impl Application for NotificationApplet {
@@ -105,6 +112,16 @@ impl Application for NotificationApplet {
                 }
             }
 
+            Message::NotificationReceived(notification) => {
+                // Log notification for now - manager will handle this in Issue #4
+                tracing::info!(
+                    "Received notification from {}: {}",
+                    notification.app_name,
+                    notification.summary
+                );
+                // TODO: Pass to notification manager (Issue #4)
+            }
+
             Message::Tick => {
                 // TODO: Handle periodic updates
             }
@@ -138,6 +155,12 @@ impl Application for NotificationApplet {
 
     fn style(&self) -> Option<cosmic::iced_runtime::Appearance> {
         Some(cosmic::applet::style())
+    }
+
+    fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
+        // Subscribe to D-Bus notifications using the subscription pattern
+        // This replaces the need for manual threading and channels
+        dbus::subscribe()
     }
 }
 

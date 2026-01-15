@@ -5,6 +5,7 @@
 //
 // Reference: https://specifications.freedesktop.org/notification-spec/latest/
 
+pub mod listener;
 pub mod types;
 
 // Re-export commonly used types
@@ -13,5 +14,5 @@ pub use types::{
     Urgency,
 };
 
-// TODO: Implement NotificationListener with iced Subscription
-// pub fn subscribe() -> iced::Subscription<crate::Message> { ... }
+// Re-export listener subscription function
+pub use listener::subscribe;
