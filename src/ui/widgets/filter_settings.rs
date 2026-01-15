@@ -34,6 +34,13 @@ where
             .style(cosmic::theme::Text::Default),
     );
 
+    // Keyboard shortcuts hint
+    content = content.push(
+        text("Shortcuts: Esc=Close, Ctrl+D=DND, Ctrl+1/2/3=Urgency")
+            .size(10)
+            .style(cosmic::theme::Text::Muted),
+    );
+
     content = content.push(divider::horizontal::default());
 
     // Do Not Disturb toggle

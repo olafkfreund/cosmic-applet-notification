@@ -61,6 +61,9 @@ pub enum Message {
 
     /// Tick for periodic updates
     Tick,
+
+    /// Keyboard event
+    KeyboardEvent(cosmic::iced::keyboard::Event),
 }
 
 // Implement From<Notification> for Message to work with subscription
@@ -289,6 +292,47 @@ impl Application for NotificationApplet {
                 }
             }
 
+            Message::KeyboardEvent(event) => {
+                use cosmic::iced::keyboard::{Event as KeyEvent, Key, Modifiers};
+
+                match event {
+                    KeyEvent::KeyPressed {
+                        key,
+                        modifiers,
+                        location: _,
+                        text: _,
+                    } => {
+                        match key {
+                            // Escape key closes popup
+                            Key::Named(cosmic::iced::keyboard::key::Named::Escape) => {
+                                if self.popup_id.is_some() {
+                                    return self.update(Message::ClosePopup);
+                                }
+                            }
+
+                            // Ctrl+D toggles Do Not Disturb
+                            Key::Character(c) if c.as_str() == "d" && modifiers.control() => {
+                                return self.update(Message::ToggleDND);
+                            }
+
+                            // Ctrl+1/2/3 for urgency levels
+                            Key::Character(c) if c.as_str() == "1" && modifiers.control() => {
+                                return self.update(Message::SetUrgencyLevel(0));
+                            }
+                            Key::Character(c) if c.as_str() == "2" && modifiers.control() => {
+                                return self.update(Message::SetUrgencyLevel(1));
+                            }
+                            Key::Character(c) if c.as_str() == "3" && modifiers.control() => {
+                                return self.update(Message::SetUrgencyLevel(2));
+                            }
+
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
             Message::Tick => {
                 // Check for expired notifications and remove them
                 let expired_ids = self.manager.get_expired_notifications();
@@ -400,12 +444,21 @@ impl Application for NotificationApplet {
         use cosmic::iced::time;
         use std::time::Duration;
 
-        // Combine D-Bus notifications with periodic tick for expiration checking
+        // Combine D-Bus notifications, periodic tick, and keyboard events
         cosmic::iced::Subscription::batch([
             // D-Bus notification listener
             dbus::subscribe(),
             // Periodic tick every 60 seconds to check for expired notifications
             time::every(Duration::from_secs(60)).map(|_| Message::Tick),
+            // Keyboard events for shortcuts
+            cosmic::iced::event::listen().map(|event| {
+                if let cosmic::iced::Event::Keyboard(keyboard_event) = event {
+                    Message::KeyboardEvent(keyboard_event)
+                } else {
+                    // Ignore non-keyboard events
+                    Message::Tick // Use Tick as a no-op
+                }
+            }),
         ])
     }
 }
