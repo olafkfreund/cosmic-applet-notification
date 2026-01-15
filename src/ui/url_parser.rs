@@ -134,7 +134,7 @@ fn validate_url(url: &str) -> Option<String> {
 /// ```
 /// use cosmic_applet_notifications::ui::url_parser::extract_first_url;
 ///
-/// let url = extract_first_url("Check out https://example.com!");
+/// let url = extract_first_url("Check out https://example.com for more info");
 /// assert_eq!(url, Some("https://example.com".to_string()));
 /// ```
 pub fn extract_first_url(text: &str) -> Option<String> {
