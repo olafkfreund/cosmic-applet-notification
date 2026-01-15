@@ -11,6 +11,15 @@
   };
 
   outputs = { self, nixpkgs, rust-overlay, flake-utils }:
+    {
+      # NixOS module for system-wide installation
+      nixosModules.default = { pkgs, ... }: {
+        imports = [ ./nixos-module.nix ];
+        services.cosmic-applet-notifications.package = pkgs.lib.mkDefault (
+          pkgs.callPackage ./package.nix { }
+        );
+      };
+    } //
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ (import rust-overlay) ];
@@ -125,67 +134,13 @@
 
         # Package for building the applet
         packages = {
-          default = pkgs.rustPlatform.buildRustPackage {
-            pname = "cosmic-notification-applet";
-            version = "0.1.0";
-
-            src = ./.;
-
-            cargoLock = {
-              lockFile = ./Cargo.lock;
-              # Add git dependencies here if needed
-              # outputHashes = {
-              #   "libcosmic-0.1.0" = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-              # };
-            };
-
-            inherit nativeBuildInputs buildInputs;
-
-            # Install phase
-            installPhase = ''
-              mkdir -p $out/bin
-              mkdir -p $out/share/applications
-              mkdir -p $out/share/icons/hicolor/scalable/apps
-              
-              # Install binary
-              install -Dm755 target/release/cosmic-applet-notifications $out/bin/
-              
-              # Install desktop entry
-              install -Dm644 data/com.system76.CosmicAppletNotifications.desktop \
-                $out/share/applications/
-              
-              # Install icon
-              install -Dm644 data/icons/com.system76.CosmicAppletNotifications.svg \
-                $out/share/icons/hicolor/scalable/apps/
-            '';
-
-            meta = with pkgs.lib; {
-              description = "Custom notification display applet for COSMIC Desktop";
-              homepage = "https://github.com/yourusername/cosmic-notification-applet";
-              license = licenses.gpl3Only;
-              maintainers = [ ];
-              platforms = platforms.linux;
-            };
-          };
+          default = pkgs.callPackage ./package.nix { };
         };
 
         # Checks (run with `nix flake check`)
         checks = {
+          # Verify the package builds successfully
           build = self.packages.${system}.default;
-
-          clippy = pkgs.rustPlatform.buildRustPackage {
-            pname = "cosmic-notification-applet-clippy";
-            version = "0.1.0";
-            src = ./.;
-            cargoLock.lockFile = ./Cargo.lock;
-            inherit nativeBuildInputs buildInputs;
-
-            buildPhase = ''
-              cargo clippy --all-targets -- -D warnings
-            '';
-
-            installPhase = "mkdir $out";
-          };
         };
 
         # Formatter (run with `nix fmt`)
