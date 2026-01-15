@@ -1,9 +1,8 @@
 # COSMIC Notification Applet
 
-[![Rust CI](https://github.com/olafkfreund/cosmic-applet-notification/workflows/Rust%20CI/badge.svg)](https://github.com/olafkfreund/cosmic-applet-notification/actions/workflows/rust-ci.yml)
-[![Nix Build](https://github.com/olafkfreund/cosmic-applet-notification/workflows/Nix%20Build/badge.svg)](https://github.com/olafkfreund/cosmic-applet-notification/actions/workflows/nix-build.yml)
-[![codecov](https://codecov.io/gh/olafkfreund/cosmic-applet-notification/branch/main/graph/badge.svg)](https://codecov.io/gh/olafkfreund/cosmic-applet-notification)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+> **Note:** GitHub Actions CI/CD is temporarily disabled due to dependency conflicts between libcosmic and Rust toolchain versions. Local development with `nix develop` + `cargo build` is the recommended workflow.
 
 A custom notification display applet for COSMIC Desktop Environment that provides enhanced notification management with customizable display, placement, and interaction options.
 
