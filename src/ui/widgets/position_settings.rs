@@ -120,10 +120,7 @@ where
         // Snap to edge toggle
         let snap_row = row()
             .push(text("Snap to Edge").size(14).width(Length::Fill))
-            .push(
-                toggler(position.snap_to_edge)
-                    .on_toggle(move |_| on_snap_toggle.clone()),
-            )
+            .push(toggler(position.snap_to_edge).on_toggle(move |_| on_snap_toggle.clone()))
             .spacing(8.0)
             .align_y(cosmic::iced::Alignment::Center);
 
@@ -131,9 +128,8 @@ where
 
         // Snap threshold (only if snap enabled)
         if position.snap_to_edge {
-            content = content.push(
-                text(format!("Snap Threshold: {} px", position.snap_threshold)).size(14),
-            );
+            content = content
+                .push(text(format!("Snap Threshold: {} px", position.snap_threshold)).size(14));
 
             let threshold_slider = slider(
                 5..=100,
@@ -169,7 +165,9 @@ fn mode_button<'a, Message>(
 where
     Message: Clone + 'a + 'static,
 {
-    let btn = button_standard(label).on_press(on_press(mode)).padding([6, 12]);
+    let btn = button_standard(label)
+        .on_press(on_press(mode))
+        .padding([6, 12]);
 
     btn.into()
 }
@@ -184,7 +182,9 @@ fn anchor_button<'a, Message>(
 where
     Message: Clone + 'a + 'static,
 {
-    let btn = button_standard(label).on_press(on_press(anchor)).padding([6, 12]);
+    let btn = button_standard(label)
+        .on_press(on_press(anchor))
+        .padding([6, 12]);
 
     btn.into()
 }

@@ -385,8 +385,7 @@ impl Application for NotificationApplet {
 
             Message::ToggleSnapToEdge => {
                 // Toggle snap-to-edge
-                self.config.popup_position.snap_to_edge =
-                    !self.config.popup_position.snap_to_edge;
+                self.config.popup_position.snap_to_edge = !self.config.popup_position.snap_to_edge;
 
                 // Save config
                 if let Err(e) = self.config_helper.save(&self.config) {

@@ -2,7 +2,9 @@
 //
 // Tests configuration loading, saving, validation, and sanitization.
 
-use cosmic_applet_notifications::config::{AppletConfig, ConfigHelper, PopupPosition};
+use cosmic_applet_notifications::config::{
+    AppletConfig, ConfigHelper, PanelAnchor, PopupPosition, PositionMode,
+};
 use std::collections::HashMap;
 use tempfile::TempDir;
 
@@ -239,4 +241,292 @@ fn test_config_sanitize_preserves_valid_values() {
     config.sanitize();
 
     assert_eq!(config, original);
+}
+
+// ============================================================================
+// Popup Position Configuration Tests
+// ============================================================================
+
+#[test]
+fn test_popup_position_default_values() {
+    let config = AppletConfig::default();
+    let pos = &config.popup_position;
+
+    // Check default values
+    assert_eq!(pos.mode, PositionMode::Auto);
+    assert_eq!(pos.anchor, PanelAnchor::AppletIcon);
+    assert_eq!(pos.offset_x, 0);
+    assert_eq!(pos.offset_y, 0);
+    assert!(pos.snap_to_edge); // Default is true
+    assert_eq!(pos.snap_threshold, 20);
+}
+
+#[test]
+fn test_popup_position_validation_valid() {
+    let mut config = create_test_config();
+
+    // Test Auto mode (should always be valid)
+    config.popup_position.mode = PositionMode::Auto;
+    assert!(config.validate());
+
+    // Test PanelRelative mode with valid values
+    config.popup_position.mode = PositionMode::PanelRelative;
+    config.popup_position.anchor = PanelAnchor::Start;
+    config.popup_position.offset_x = 100;
+    config.popup_position.offset_y = -50;
+    config.popup_position.snap_to_edge = true;
+    config.popup_position.snap_threshold = 50;
+    assert!(config.validate());
+
+    // Test all anchor points
+    for anchor in [
+        PanelAnchor::Start,
+        PanelAnchor::Center,
+        PanelAnchor::End,
+        PanelAnchor::AppletIcon,
+    ] {
+        config.popup_position.anchor = anchor;
+        assert!(config.validate());
+    }
+}
+
+#[test]
+fn test_popup_position_validation_invalid_offsets() {
+    let mut config = create_test_config();
+    config.popup_position.mode = PositionMode::PanelRelative;
+
+    // Test offset_x too low
+    config.popup_position.offset_x = -3001;
+    assert!(!config.validate());
+
+    // Test offset_x too high
+    config.popup_position.offset_x = 3001;
+    assert!(!config.validate());
+
+    // Reset offset_x, test offset_y too low
+    config.popup_position.offset_x = 0;
+    config.popup_position.offset_y = -3001;
+    assert!(!config.validate());
+
+    // Test offset_y too high
+    config.popup_position.offset_y = 3001;
+    assert!(!config.validate());
+
+    // Test edge cases (should be valid)
+    config.popup_position.offset_x = -3000;
+    config.popup_position.offset_y = 3000;
+    assert!(config.validate());
+
+    config.popup_position.offset_x = 3000;
+    config.popup_position.offset_y = -3000;
+    assert!(config.validate());
+}
+
+#[test]
+fn test_popup_position_validation_invalid_snap_threshold() {
+    let mut config = create_test_config();
+    config.popup_position.snap_to_edge = true;
+
+    // Test threshold too low
+    config.popup_position.snap_threshold = 4;
+    assert!(!config.validate());
+
+    // Test threshold too high
+    config.popup_position.snap_threshold = 101;
+    assert!(!config.validate());
+
+    // Test edge cases (should be valid)
+    config.popup_position.snap_threshold = 5;
+    assert!(config.validate());
+
+    config.popup_position.snap_threshold = 100;
+    assert!(config.validate());
+}
+
+#[test]
+fn test_popup_position_sanitization() {
+    let mut config = create_test_config();
+
+    // Set invalid values
+    config.popup_position.offset_x = 5000;
+    config.popup_position.offset_y = -5000;
+    config.popup_position.snap_threshold = 200;
+
+    config.sanitize();
+
+    // Check values are clamped to valid ranges
+    assert!(config.popup_position.offset_x >= -3000);
+    assert!(config.popup_position.offset_x <= 3000);
+    assert!(config.popup_position.offset_y >= -3000);
+    assert!(config.popup_position.offset_y <= 3000);
+    assert!(config.popup_position.snap_threshold >= 5);
+    assert!(config.popup_position.snap_threshold <= 100);
+
+    // Verify specific clamped values
+    assert_eq!(config.popup_position.offset_x, 3000);
+    assert_eq!(config.popup_position.offset_y, -3000);
+    assert_eq!(config.popup_position.snap_threshold, 100);
+}
+
+#[test]
+fn test_popup_position_sanitization_preserves_valid() {
+    let mut config = create_test_config();
+    config.popup_position.offset_x = 250;
+    config.popup_position.offset_y = -150;
+    config.popup_position.snap_threshold = 30;
+
+    let original_pos = config.popup_position.clone();
+
+    config.sanitize();
+
+    // Valid values should remain unchanged
+    assert_eq!(config.popup_position.offset_x, original_pos.offset_x);
+    assert_eq!(config.popup_position.offset_y, original_pos.offset_y);
+    assert_eq!(
+        config.popup_position.snap_threshold,
+        original_pos.snap_threshold
+    );
+}
+
+#[test]
+fn test_popup_position_modes() {
+    let mut config = create_test_config();
+
+    // Test Auto mode
+    config.popup_position.mode = PositionMode::Auto;
+    assert!(config.validate());
+
+    // Test PanelRelative mode
+    config.popup_position.mode = PositionMode::PanelRelative;
+    assert!(config.validate());
+}
+
+#[test]
+fn test_popup_position_all_anchors() {
+    let mut config = create_test_config();
+    config.popup_position.mode = PositionMode::PanelRelative;
+
+    // Test all anchor points are valid
+    let anchors = [
+        PanelAnchor::Start,
+        PanelAnchor::Center,
+        PanelAnchor::End,
+        PanelAnchor::AppletIcon,
+    ];
+
+    for anchor in anchors {
+        config.popup_position.anchor = anchor;
+        assert!(config.validate(), "Anchor {:?} should be valid", anchor);
+    }
+}
+
+#[test]
+fn test_popup_position_clone() {
+    let config = create_test_config();
+    let cloned = config.clone();
+
+    assert_eq!(config.popup_position.mode, cloned.popup_position.mode);
+    assert_eq!(config.popup_position.anchor, cloned.popup_position.anchor);
+    assert_eq!(config.popup_position.offset_x, cloned.popup_position.offset_x);
+    assert_eq!(config.popup_position.offset_y, cloned.popup_position.offset_y);
+    assert_eq!(
+        config.popup_position.snap_to_edge,
+        cloned.popup_position.snap_to_edge
+    );
+    assert_eq!(
+        config.popup_position.snap_threshold,
+        cloned.popup_position.snap_threshold
+    );
+}
+
+#[test]
+fn test_popup_position_equality() {
+    let config1 = create_test_config();
+    let config2 = create_test_config();
+
+    assert_eq!(config1.popup_position, config2.popup_position);
+}
+
+#[test]
+fn test_popup_position_inequality_after_modification() {
+    let mut config1 = create_test_config();
+    let config2 = create_test_config();
+
+    // Modify mode
+    config1.popup_position.mode = PositionMode::PanelRelative;
+    assert_ne!(config1.popup_position, config2.popup_position);
+
+    // Reset and modify anchor
+    config1.popup_position.mode = config2.popup_position.mode;
+    config1.popup_position.anchor = PanelAnchor::Start;
+    assert_ne!(config1.popup_position, config2.popup_position);
+
+    // Reset and modify offsets
+    config1.popup_position.anchor = config2.popup_position.anchor;
+    config1.popup_position.offset_x = 100;
+    assert_ne!(config1.popup_position, config2.popup_position);
+}
+
+#[test]
+fn test_popup_position_snap_behavior() {
+    let mut config = create_test_config();
+
+    // Snap disabled with valid threshold should be valid
+    config.popup_position.snap_to_edge = false;
+    config.popup_position.snap_threshold = 20; // Must still be valid range
+    assert!(config.validate());
+
+    // Snap disabled with invalid threshold should still fail
+    // (threshold is always validated to ensure config integrity)
+    config.popup_position.snap_threshold = 4;
+    assert!(!config.validate());
+
+    // Fix threshold and enable snap
+    config.popup_position.snap_threshold = 20;
+    config.popup_position.snap_to_edge = true;
+    assert!(config.validate()); // Should pass
+}
+
+#[test]
+fn test_popup_position_extreme_values() {
+    let mut config = create_test_config();
+
+    // Test maximum negative offsets
+    config.popup_position.offset_x = -3000;
+    config.popup_position.offset_y = -3000;
+    assert!(config.validate());
+
+    // Test maximum positive offsets
+    config.popup_position.offset_x = 3000;
+    config.popup_position.offset_y = 3000;
+    assert!(config.validate());
+
+    // Test minimum snap threshold
+    config.popup_position.snap_to_edge = true;
+    config.popup_position.snap_threshold = 5;
+    assert!(config.validate());
+
+    // Test maximum snap threshold
+    config.popup_position.snap_threshold = 100;
+    assert!(config.validate());
+}
+
+#[test]
+fn test_config_with_custom_position() {
+    let mut config = create_test_config();
+
+    // Configure custom position
+    config.popup_position.mode = PositionMode::PanelRelative;
+    config.popup_position.anchor = PanelAnchor::End;
+    config.popup_position.offset_x = -200;
+    config.popup_position.offset_y = 50;
+    config.popup_position.snap_to_edge = true;
+    config.popup_position.snap_threshold = 15;
+
+    // Should validate
+    assert!(config.validate());
+
+    // Clone should preserve all settings
+    let cloned = config.clone();
+    assert_eq!(config.popup_position, cloned.popup_position);
 }
