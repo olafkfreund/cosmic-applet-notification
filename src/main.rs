@@ -41,6 +41,9 @@ pub enum Message {
     /// Update configuration
     UpdateConfig(config::AppletConfig),
 
+    /// Open a URL from a notification
+    OpenUrl(String),
+
     /// Tick for periodic updates
     Tick,
 }
@@ -179,6 +182,15 @@ impl Application for NotificationApplet {
                 self.config = config;
             }
 
+            Message::OpenUrl(url) => {
+                // Open URL using system handler (xdg-open)
+                if let Err(e) = ui::url_parser::open_url(&url) {
+                    tracing::error!("Failed to open URL {}: {}", url, e);
+                } else {
+                    tracing::info!("Opened URL: {}", url);
+                }
+            }
+
             Message::Tick => {
                 // Check for expired notifications and remove them
                 let expired_ids = self.manager.get_expired_notifications();
@@ -248,10 +260,12 @@ impl Application for NotificationApplet {
             // Get active notifications from manager
             let notifications = self.manager.active_notifications();
 
-            // Create notification list view
-            let content = ui::widgets::notification_list(notifications, |id| {
-                Message::DismissNotification(id)
-            });
+            // Create notification list view with clickable URLs
+            let content = ui::widgets::notification_list(
+                notifications,
+                |id| Message::DismissNotification(id),
+                |url| Message::OpenUrl(url),
+            );
 
             self.core.applet.popup_container(content).into()
         } else {

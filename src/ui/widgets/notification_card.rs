@@ -7,14 +7,16 @@ use cosmic::widget::{button, column, container, row, text};
 use cosmic::Element;
 
 use crate::dbus::Notification;
+use crate::ui::url_parser::{parse_text, TextSegment};
 
 /// Create a notification card widget
 ///
-/// Displays notification information with a dismiss button.
+/// Displays notification information with a dismiss button and clickable URLs.
 /// Uses COSMIC design patterns for consistent appearance.
 pub fn notification_card<'a, Message>(
     notification: &Notification,
     on_dismiss: impl Fn(u32) -> Message + 'a,
+    on_url: impl Fn(String) -> Message + 'a + Clone,
 ) -> Element<'a, Message>
 where
     Message: Clone + 'a,
@@ -53,13 +55,10 @@ where
         summary,
     ];
 
-    // Add body text only if present (avoids empty text widget)
+    // Add body text with clickable URLs if present
     if !notification.body.is_empty() {
-        content = content.push(
-            text(&notification.body)
-                .size(12)
-                .style(cosmic::theme::Text::Muted),
-        );
+        let body_content = render_text_with_links(&notification.body, on_url);
+        content = content.push(body_content);
     }
 
     let content = content.spacing(4).padding(12).width(Length::Fill);
@@ -69,6 +68,49 @@ where
         .style(cosmic::theme::Container::Card)
         .width(Length::Fill)
         .into()
+}
+
+/// Render text with clickable URL links
+///
+/// Parses the text for URLs and creates a row with text segments and link buttons.
+fn render_text_with_links<'a, Message>(
+    text_content: &str,
+    url_message: impl Fn(String) -> Message + 'a,
+) -> Element<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    let segments = parse_text(text_content);
+
+    // Create a wrapping row for text segments and links
+    let mut content_row = row![]
+        .spacing(4)
+        .align_items(cosmic::iced::Alignment::Center);
+
+    for segment in segments {
+        match segment {
+            TextSegment::Text(txt) => {
+                // Add plain text
+                content_row =
+                    content_row.push(text(txt).size(12).style(cosmic::theme::Text::Muted));
+            }
+            TextSegment::Link {
+                text: link_text,
+                url,
+            } => {
+                // Add clickable link button
+                let link_button =
+                    button(text(&link_text).size(12).style(cosmic::theme::Text::Accent))
+                        .on_press(url_message(url))
+                        .padding([0, 4])
+                        .style(cosmic::theme::Button::Link);
+
+                content_row = content_row.push(link_button);
+            }
+        }
+    }
+
+    content_row.into()
 }
 
 /// Format timestamp for display
