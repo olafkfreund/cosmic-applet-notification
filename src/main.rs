@@ -332,14 +332,29 @@ impl Application for NotificationApplet {
                     notification.summary,
                     action
                 );
+
+                // Start appear animation if enabled
+                if self.config.animations.enabled && self.config.animations.notification_appear {
+                    return self.update(Message::StartAppearAnimation(notification.id));
+                }
+
+                // Create progress indicator for timed notifications
+                if self.config.animations.show_progress && notification.expire_timeout > 0 {
+                    let indicator = ui::animation::ProgressIndicator::new(
+                        notification.id,
+                        notification.expire_timeout as i64,
+                    );
+                    self.progress_indicators.insert(notification.id, indicator);
+                }
             }
 
             Message::DismissNotification(id) => {
-                // Remove notification from manager
-                if self.manager.remove_notification(id) {
-                    tracing::debug!("Dismissed notification {}", id);
+                // Start dismiss animation if enabled, otherwise dismiss immediately
+                if self.config.animations.enabled && self.config.animations.notification_dismiss {
+                    return self.update(Message::StartDismissAnimation(id));
                 } else {
-                    tracing::warn!("Failed to dismiss notification {} (not found)", id);
+                    // Immediate dismissal without animation
+                    return self.update(Message::CompleteNotificationDismissal(id));
                 }
             }
 
@@ -819,31 +834,91 @@ impl Application for NotificationApplet {
                 }
             }
 
-            // Animation messages (Phase 4B - architecture only, not yet implemented)
+            // Animation messages (Phase 4B)
             Message::AnimationFrame => {
-                // TODO: Update animation states and progress indicators
-                tracing::trace!("Animation frame tick");
+                // Check all notification animations for completion
+                let mut completed_animations = Vec::new();
+
+                for (notification_id, animation) in &self.notification_animations {
+                    // Check if animation is complete (animations track time internally)
+                    if animation.is_complete() {
+                        completed_animations.push(*notification_id);
+                    }
+                }
+
+                // Update progress indicators (remove expired ones)
+                self.progress_indicators
+                    .retain(|_, indicator| !indicator.is_expired());
+
+                // Remove completed animations and trigger completion handlers
+                for notification_id in completed_animations {
+                    if let Some(animation) = self.notification_animations.remove(&notification_id) {
+                        // If this was a dismiss animation, complete the dismissal
+                        if matches!(
+                            animation.animation_type,
+                            ui::animation::NotificationAnimationType::Dismissing
+                        ) {
+                            return self.update(Message::CompleteNotificationDismissal(notification_id));
+                        }
+                    }
+                }
             }
 
-            Message::StartAppearAnimation(_notification_id) => {
-                // TODO: Initialize appear animation for notification
+            Message::StartAppearAnimation(notification_id) => {
+                // Check if animations are enabled
+                if !self.config.animations.enabled || !self.config.animations.notification_appear {
+                    return Task::none();
+                }
+
+                // Create appear animation
+                let animation = ui::animation::NotificationAnimation::appearing(
+                    notification_id,
+                    ui::animation::AnimationDuration::NORMAL,
+                );
+
+                self.notification_animations.insert(notification_id, animation);
+
+                tracing::debug!("Started appear animation for notification {}", notification_id);
+            }
+
+            Message::StartDismissAnimation(notification_id) => {
+                // Check if animations are enabled
+                if !self.config.animations.enabled || !self.config.animations.notification_dismiss {
+                    // Skip animation and dismiss immediately
+                    return self.update(Message::CompleteNotificationDismissal(notification_id));
+                }
+
+                // Create dismiss animation
+                let animation = ui::animation::NotificationAnimation::dismissing(
+                    notification_id,
+                    ui::animation::AnimationDuration::FAST,
+                );
+
+                self.notification_animations.insert(notification_id, animation);
+
                 tracing::debug!(
-                    "Start appear animation for notification {}",
-                    _notification_id
+                    "Started dismiss animation for notification {}",
+                    notification_id
                 );
             }
 
-            Message::StartDismissAnimation(_notification_id) => {
-                // TODO: Initialize dismiss animation for notification
-                tracing::debug!(
-                    "Start dismiss animation for notification {}",
-                    _notification_id
-                );
-            }
+            Message::CompleteNotificationDismissal(notification_id) => {
+                // Remove the notification from manager
+                if self.manager.remove_notification(notification_id) {
+                    tracing::debug!("Completed dismissal of notification {}", notification_id);
+                } else {
+                    tracing::warn!(
+                        "Failed to complete dismissal of notification {} (not found)",
+                        notification_id
+                    );
+                }
 
-            Message::CompleteNotificationDismissal(_notification_id) => {
-                // TODO: Complete dismissal after animation finishes
-                tracing::debug!("Complete dismissal for notification {}", _notification_id);
+                // Clean up animation state
+                self.notification_animations.remove(&notification_id);
+                self.progress_indicators.remove(&notification_id);
+
+                // Validate selection after removing notification
+                self.validate_selection();
             }
         }
 
@@ -924,8 +999,7 @@ impl Application for NotificationApplet {
         use cosmic::iced::time;
         use std::time::Duration;
 
-        // Combine D-Bus notifications, periodic tick, and keyboard events
-        cosmic::iced::Subscription::batch([
+        let mut subscriptions = vec![
             // D-Bus notification listener
             dbus::subscribe(),
             // Periodic tick every 60 seconds to check for expired notifications
@@ -938,7 +1012,19 @@ impl Application for NotificationApplet {
                     None
                 }
             }),
-        ])
+        ];
+
+        // Add animation frame subscription if animations are enabled and there are active animations
+        if self.config.animations.enabled
+            && (!self.notification_animations.is_empty()
+                || self.popup_animation.is_some()
+                || !self.progress_indicators.is_empty())
+        {
+            // 60fps animation updates
+            subscriptions.push(time::every(Duration::from_millis(16)).map(|_| Message::AnimationFrame));
+        }
+
+        cosmic::iced::Subscription::batch(subscriptions)
     }
 }
 
