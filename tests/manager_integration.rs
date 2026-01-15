@@ -111,7 +111,7 @@ fn test_manager_notification_replacement() {
     let mut manager = NotificationManager::new();
 
     // Add original notification
-    let mut notif1 = create_notification("test", "Original", Urgency::Normal);
+    let notif1 = create_notification("test", "Original", Urgency::Normal);
     manager.add_notification(notif1.clone());
     let original_id = manager
         .get_notification_at(0)

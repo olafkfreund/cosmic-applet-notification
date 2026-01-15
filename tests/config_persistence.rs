@@ -3,10 +3,9 @@
 // Tests configuration loading, saving, validation, and sanitization.
 
 use cosmic_applet_notifications::config::{
-    AppletConfig, ConfigHelper, PanelAnchor, PopupPosition, PositionMode,
+    AnimationConfig, AppletConfig, PanelAnchor, PopupPosition, PositionMode,
 };
 use std::collections::HashMap;
-use tempfile::TempDir;
 
 fn create_test_config() -> AppletConfig {
     AppletConfig {
@@ -26,6 +25,7 @@ fn create_test_config() -> AppletConfig {
         history_retention_days: Some(7),
         app_filters: HashMap::new(),
         min_urgency_level: 0,
+        animations: AnimationConfig::default(),
     }
 }
 
