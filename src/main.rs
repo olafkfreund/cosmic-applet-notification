@@ -78,8 +78,15 @@ impl Application for NotificationApplet {
         tracing::info!("Configuration loaded from {:?}", config_helper.path());
         tracing::debug!("Config: {:?}", config);
 
-        // Initialize manager with config settings
-        let mut manager = manager::NotificationManager::new();
+        // Initialize manager with history from disk and config settings
+        let mut manager = if config.history_enabled {
+            manager::NotificationManager::with_history(
+                config.max_history_items,
+                config.history_retention_days,
+            )
+        } else {
+            manager::NotificationManager::new()
+        };
         manager.set_do_not_disturb(config.do_not_disturb);
 
         let app = NotificationApplet {
@@ -179,6 +186,25 @@ impl Application for NotificationApplet {
                 for id in expired_ids {
                     self.manager.remove_notification(id);
                     tracing::debug!("Removed expired notification {}", id);
+                }
+
+                // Cleanup old notifications from history based on config
+                if self.config.history_enabled {
+                    let removed = self.manager.cleanup_history(
+                        self.config.max_history_items,
+                        self.config.history_retention_days,
+                    );
+
+                    if removed > 0 {
+                        tracing::debug!("Cleaned up {} old notifications from history", removed);
+                    }
+
+                    // Save history to disk periodically
+                    if let Err(e) = self.manager.save_history() {
+                        tracing::error!("Failed to save notification history: {}", e);
+                    } else {
+                        tracing::trace!("Saved notification history to disk");
+                    }
                 }
             }
         }

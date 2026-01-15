@@ -4,6 +4,8 @@
 // It provides a simple, single-threaded state manager that integrates
 // with the iced application without requiring Arc/Mutex.
 
+pub mod storage;
+
 use std::collections::{HashMap, VecDeque};
 
 use chrono::{DateTime, Duration, Local};
@@ -64,6 +66,34 @@ impl NotificationManager {
         Self {
             active_notifications: VecDeque::new(),
             notification_history: VecDeque::with_capacity(MAX_HISTORY_SIZE),
+            next_id: 1,
+            do_not_disturb: false,
+            app_filters: HashMap::new(),
+        }
+    }
+
+    /// Create a new notification manager with history loaded from disk
+    ///
+    /// Loads persisted notification history and applies cleanup based on config.
+    /// Use this instead of new() when you want to restore history on startup.
+    pub fn with_history(max_history_items: usize, retention_days: Option<u32>) -> Self {
+        let storage = storage::HistoryStorage::new();
+        let mut history = storage.load();
+
+        // Apply cleanup based on retention policy
+        storage::HistoryStorage::cleanup_old_notifications(&mut history, retention_days);
+
+        // Enforce size limit
+        storage::HistoryStorage::enforce_size_limit(&mut history, max_history_items);
+
+        tracing::info!(
+            "Initialized manager with {} notifications from history",
+            history.len()
+        );
+
+        Self {
+            active_notifications: VecDeque::new(),
+            notification_history: history,
             next_id: 1,
             do_not_disturb: false,
             app_filters: HashMap::new(),
@@ -277,6 +307,39 @@ impl NotificationManager {
         while self.notification_history.len() > MAX_HISTORY_SIZE {
             self.notification_history.pop_front();
         }
+    }
+
+    /// Save notification history to disk
+    ///
+    /// Persists current notification history to storage.
+    /// Should be called periodically or on significant state changes.
+    ///
+    /// Returns:
+    /// - Ok(()) on success
+    /// - Err on storage failure
+    pub fn save_history(&self) -> Result<(), std::io::Error> {
+        let storage = storage::HistoryStorage::new();
+        storage.save(&self.notification_history)
+    }
+
+    /// Clean up old notifications from history
+    ///
+    /// Removes notifications based on retention policy and size limits.
+    /// Returns the number of notifications removed.
+    pub fn cleanup_history(&mut self, max_items: usize, retention_days: Option<u32>) -> usize {
+        let mut removed = 0;
+
+        // Apply retention policy
+        removed += storage::HistoryStorage::cleanup_old_notifications(
+            &mut self.notification_history,
+            retention_days,
+        );
+
+        // Enforce size limit
+        removed +=
+            storage::HistoryStorage::enforce_size_limit(&mut self.notification_history, max_items);
+
+        removed
     }
 
     /// Get notifications grouped by application
