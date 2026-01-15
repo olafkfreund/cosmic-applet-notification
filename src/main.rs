@@ -10,11 +10,8 @@ pub struct NotificationApplet {
     /// COSMIC application core
     core: cosmic::app::Core,
 
-    /// D-Bus notification listener (TODO: implement)
-    // listener: Option<dbus::NotificationListener>,
-
-    /// Notification manager (TODO: implement)
-    // manager: manager::NotificationManager,
+    /// Notification manager
+    manager: manager::NotificationManager,
 
     /// Current popup window ID
     popup_id: Option<cosmic::iced::window::Id>,
@@ -66,10 +63,10 @@ impl Application for NotificationApplet {
     ) -> (Self, cosmic::iced::Command<Self::Message>) {
         let app = NotificationApplet {
             core,
+            manager: manager::NotificationManager::new(),
             popup_id: None,
         };
 
-        // TODO: Initialize D-Bus listener
         // TODO: Load configuration
 
         (app, cosmic::iced::Command::none())
@@ -113,17 +110,29 @@ impl Application for NotificationApplet {
             }
 
             Message::NotificationReceived(notification) => {
-                // Log notification for now - manager will handle this in Issue #4
+                // Add notification to manager
+                let action = self.manager.add_notification(notification.clone());
+
                 tracing::info!(
-                    "Received notification from {}: {}",
+                    "Received notification from {}: {} (action: {:?})",
                     notification.app_name,
-                    notification.summary
+                    notification.summary,
+                    action
                 );
-                // TODO: Pass to notification manager (Issue #4)
+
+                // TODO: Update UI to show notification count in panel icon (Issue #6)
             }
 
             Message::Tick => {
-                // TODO: Handle periodic updates
+                // Check for expired notifications and remove them
+                let expired_ids = self.manager.get_expired_notifications();
+
+                for id in expired_ids {
+                    self.manager.remove_notification(id);
+                    tracing::debug!("Removed expired notification {}", id);
+                }
+
+                // TODO: Update UI if needed
             }
         }
 
