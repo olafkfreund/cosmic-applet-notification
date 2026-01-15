@@ -11,6 +11,7 @@
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::time::Duration;
 
 use chrono::Local;
 use futures::stream::{Stream, StreamExt};
@@ -28,6 +29,39 @@ use crate::dbus::types::{parse_actions, parse_hints, Notification};
 ///
 /// TODO: Make configurable via cosmic-config (default: 128, range: 32-512)
 const NOTIFICATION_BUFFER_SIZE: usize = 128;
+
+/// Initial reconnection delay in milliseconds
+///
+/// When D-Bus connection fails, we wait this long before the first retry.
+/// Chosen to balance responsiveness with system load.
+const INITIAL_RECONNECT_DELAY_MS: u64 = 100;
+
+/// Maximum reconnection delay in milliseconds (30 seconds)
+///
+/// This value balances two concerns:
+/// 1. System resource usage: Limits retry frequency during prolonged D-Bus outages
+/// 2. Recovery time: D-Bus session bus typically restarts within 5-10 seconds
+///
+/// Chosen based on:
+/// - Typical session bus restart: ~3 seconds (requires 4-5 retries at 30s cap)
+/// - Maximum outage tolerance: ~5 minutes before user notices
+/// - Log spam prevention: 30s interval generates ~10 log entries per 5 minutes
+///
+/// If D-Bus is down longer than 5 minutes, user intervention is likely needed anyway.
+const MAX_RECONNECT_DELAY_MS: u64 = 30_000;
+
+/// Maximum connection retry attempts before giving up
+///
+/// After this many failed attempts, the listener stops trying to reconnect.
+/// User can restart the panel to retry. Prevents infinite resource consumption
+/// during permanent D-Bus failures (system shutdown, service removal).
+const MAX_CONNECTION_RETRIES: u32 = 10;
+
+/// Reconnection backoff multiplier
+///
+/// Each failed reconnection attempt multiplies the delay by this factor.
+/// Value of 2.0 provides exponential backoff: 100ms → 200ms → 400ms → ...
+const RECONNECT_BACKOFF_MULTIPLIER: f64 = 2.0;
 
 /// Subscription ID for the notification listener
 /// This ensures only one listener instance exists
@@ -70,33 +104,88 @@ where
     )
 }
 
-/// Create an async stream of notifications from D-Bus
+/// Create an async stream of notifications from D-Bus with automatic reconnection
 ///
 /// This is the core async function that:
-/// 1. Connects to the D-Bus session bus
+/// 1. Connects to the D-Bus session bus (with retry logic)
 /// 2. Sets up a match rule for notification signals
 /// 3. Creates a MessageStream to receive signals
 /// 4. Parses each signal into a Notification
 /// 5. Yields notifications as a stream
+/// 6. Automatically reconnects on connection drop (unfold triggers reconnection)
 ///
-/// Errors are logged but don't terminate the stream - we keep listening
-/// even if individual notifications are malformed.
+/// Uses a simpler two-layer approach:
+/// - Outer unfold: Manages connection lifecycle (connect → stream → reconnect)
+/// - Inner stream: Processes notifications from current connection
+///
+/// When the connection drops, unfold automatically calls retry_connect() again.
 async fn notification_stream() -> impl Stream<Item = Notification> {
-    // Connect to session bus - this is where notifications are sent
-    let connection = match Connection::session().await {
-        Ok(conn) => {
-            tracing::info!("Connected to D-Bus session bus");
-            conn
-        }
-        Err(e) => {
-            tracing::error!("Failed to connect to D-Bus session bus: {}", e);
-            // Return empty stream on connection failure
-            return futures::stream::empty().boxed();
-        }
-    };
+    futures::stream::unfold((), |_| async {
+        // Attempt connection with exponential backoff
+        let connection = retry_connect().await?;
 
+        // Create notification stream for this connection
+        let stream = create_notification_stream(connection).await?;
+
+        // When stream ends (connection drop), unfold calls this function again
+        Some((stream, ()))
+    })
+    .flatten()
+    .boxed()
+}
+
+/// Attempt to connect to D-Bus with exponential backoff
+///
+/// Retries up to MAX_CONNECTION_RETRIES times with exponential backoff.
+/// Returns None if all retry attempts fail (listener will stop).
+async fn retry_connect() -> Option<Connection> {
+    let mut delay_ms = INITIAL_RECONNECT_DELAY_MS;
+
+    for attempt in 1..=MAX_CONNECTION_RETRIES {
+        match Connection::session().await {
+            Ok(conn) => {
+                tracing::info!(
+                    "Connected to D-Bus session bus (attempt {}/{})",
+                    attempt,
+                    MAX_CONNECTION_RETRIES
+                );
+                return Some(conn);
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Connection attempt {}/{} failed: {} (retrying in {}ms)",
+                    attempt,
+                    MAX_CONNECTION_RETRIES,
+                    e,
+                    delay_ms
+                );
+
+                // Wait before next retry
+                tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+
+                // Calculate next delay with exponential backoff
+                delay_ms = ((delay_ms as f64 * RECONNECT_BACKOFF_MULTIPLIER) as u64)
+                    .min(MAX_RECONNECT_DELAY_MS);
+            }
+        }
+    }
+
+    // All retry attempts exhausted
+    tracing::error!(
+        "Failed to connect to D-Bus after {} attempts, giving up",
+        MAX_CONNECTION_RETRIES
+    );
+    None
+}
+
+/// Create a notification stream from an established D-Bus connection
+///
+/// Sets up the match rule and message stream for the connection.
+/// Returns None if setup fails (will trigger reconnection attempt).
+async fn create_notification_stream(
+    connection: Connection,
+) -> Option<impl Stream<Item = Notification>> {
     // Create match rule for org.freedesktop.Notifications signals
-    // We want all signals from this interface to catch notifications
     let match_rule = match MatchRule::builder()
         .msg_type(MessageType::Signal)
         .interface("org.freedesktop.Notifications")
@@ -104,13 +193,12 @@ async fn notification_stream() -> impl Stream<Item = Notification> {
     {
         Ok(rule) => rule,
         Err(e) => {
-            tracing::error!("Failed to build match rule: {}", e);
-            return futures::stream::empty().boxed();
+            tracing::error!("Failed to build match rule: {} (will retry connection)", e);
+            return None;
         }
     };
 
     // Create message stream with configured buffer size
-    // This provides backpressure if we can't process notifications fast enough
     let message_stream = match MessageStream::for_match_rule(
         match_rule,
         &connection,
@@ -123,31 +211,35 @@ async fn notification_stream() -> impl Stream<Item = Notification> {
             stream
         }
         Err(e) => {
-            tracing::error!("Failed to create message stream: {}", e);
-            return futures::stream::empty().boxed();
+            tracing::error!(
+                "Failed to create message stream: {} (will retry connection)",
+                e
+            );
+            return None;
         }
     };
 
     // Transform D-Bus messages into Notifications
-    // filter_map skips any messages we can't parse
-    message_stream
-        .filter_map(|message| async move {
-            match parse_notification_signal(message) {
-                Ok(notification) => {
-                    tracing::debug!(
-                        "Received notification: {} from {}",
-                        notification.summary,
-                        notification.app_name
-                    );
-                    Some(notification)
+    Some(
+        message_stream
+            .filter_map(|message| async move {
+                match parse_notification_signal(message) {
+                    Ok(notification) => {
+                        tracing::debug!(
+                            "Received notification: {} from {}",
+                            notification.summary,
+                            notification.app_name
+                        );
+                        Some(notification)
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to parse notification signal: {}", e);
+                        None
+                    }
                 }
-                Err(e) => {
-                    tracing::warn!("Failed to parse notification signal: {}", e);
-                    None
-                }
-            }
-        })
-        .boxed()
+            })
+            .boxed(),
+    )
 }
 
 /// Parse a D-Bus message into a Notification
