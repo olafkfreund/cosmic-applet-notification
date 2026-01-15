@@ -20,7 +20,29 @@ This applet listens to the freedesktop.org D-Bus notification interface and disp
 
 ## Project Status
 
-🚧 **In Development** - This project is currently in the planning and initial development phase.
+✅ **Phase 1-3 Complete** - Core functionality implemented
+🚧 **Phase 4-5 In Progress** - Polish, optimization, and packaging
+
+### Completed Features
+- ✅ D-Bus notification listener
+- ✅ Notification manager with state management
+- ✅ COSMIC applet integration with panel icon
+- ✅ Popup window with notification list
+- ✅ Configuration system with COSMIC Config
+- ✅ Notification history with persistence
+- ✅ Clickable URL support in notification bodies
+- ✅ Action button support for notification interactions
+- ✅ Per-application notification filtering
+- ✅ Keyboard navigation and shortcuts
+- ✅ Comprehensive test suite (100+ tests)
+- ✅ NixOS package derivation
+- ✅ CI/CD with GitHub Actions
+
+### In Progress
+- 🚧 Performance optimization and profiling
+- 🚧 User documentation
+- 🚧 Notification animations
+- 🚧 Custom positioning options
 
 ## Quick Start
 
@@ -48,6 +70,36 @@ just run
 ```
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed development workflows.
+
+## Features
+
+### Core Functionality
+- **Notification Display**: Receive and display system notifications via D-Bus
+- **History Management**: Persistent notification history with configurable retention
+- **Interactive Notifications**: Clickable URLs and action buttons
+- **Smart Filtering**: Per-application filters and urgency-based filtering
+- **Do Not Disturb**: DND mode with critical notification bypass
+
+### User Interface
+- **COSMIC Integration**: Native panel applet with COSMIC design language
+- **Popup Window**: Expandable notification list with smooth interactions
+- **Keyboard Shortcuts**: Full keyboard navigation support
+  - `Escape`: Close popup
+  - `Ctrl+D`: Toggle Do Not Disturb
+  - `Ctrl+1/2/3`: Set urgency filter level (All/Normal+/Critical only)
+- **Visual Feedback**: Clear status indicators and responsive design
+
+### Configuration
+- **Flexible Settings**: Extensive configuration options via COSMIC Config
+- **App Filters**: Enable/disable notifications per application
+- **History Settings**: Configurable history size and retention period
+- **Display Options**: Customize notification appearance and behavior
+
+### Advanced Features
+- **URL Detection**: Automatic detection and clickable links in notification text
+- **Security**: Blocked javascript:, data:, and file: URLs for safety
+- **Action Support**: Full support for notification actions (reply, dismiss, etc.)
+- **Urgency Levels**: Respect and filter by Low/Normal/Critical urgency
 
 ## Documentation
 
