@@ -138,13 +138,35 @@ impl Application for NotificationApplet {
                     let id = window::Id::unique();
                     self.popup_id = Some(id);
 
-                    let popup_settings = self.core.applet.get_popup_settings(
+                    // Calculate position based on configuration
+                    let panel_edge = ui::positioning::PanelEdge::detect();
+                    let (anchor, gravity, offset) = ui::positioning::calculate_popup_position(
+                        &self.config.popup_position,
+                        panel_edge,
+                    );
+
+                    tracing::debug!(
+                        "Popup position: mode={:?}, panel={:?}, anchor={:?}, gravity={:?}, offset={:?}",
+                        self.config.popup_position.mode,
+                        panel_edge,
+                        anchor,
+                        gravity,
+                        offset
+                    );
+
+                    // Get default popup settings
+                    let mut popup_settings = self.core.applet.get_popup_settings(
                         self.core.main_window_id().unwrap(),
                         id,
                         Some((self.config.popup_width, self.config.popup_height)),
                         None,
                         None,
                     );
+
+                    // Override positioner with calculated values
+                    popup_settings.positioner.anchor = anchor;
+                    popup_settings.positioner.gravity = gravity;
+                    popup_settings.positioner.offset = offset;
 
                     return cosmic::iced::platform_specific::shell::commands::popup::get_popup(
                         popup_settings,

@@ -2,7 +2,7 @@
 //
 // Tests configuration loading, saving, validation, and sanitization.
 
-use cosmic_applet_notifications::config::{AppletConfig, ConfigHelper};
+use cosmic_applet_notifications::config::{AppletConfig, ConfigHelper, PopupPosition};
 use std::collections::HashMap;
 use tempfile::TempDir;
 
@@ -14,6 +14,7 @@ fn create_test_config() -> AppletConfig {
         show_app_icon: true,
         popup_width: 400,
         popup_height: 600,
+        popup_position: PopupPosition::default(),
         do_not_disturb: false,
         default_timeout: Some(5000),
         play_sound: false,

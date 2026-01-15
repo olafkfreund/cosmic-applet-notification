@@ -15,6 +15,81 @@ pub use helper::ConfigHelper;
 /// Configuration version for migration support
 pub const CONFIG_VERSION: u64 = 1;
 
+/// Popup positioning mode
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum PositionMode {
+    /// Auto-position based on panel location (current default)
+    Auto,
+    /// Panel-relative positioning with custom anchor and offsets
+    PanelRelative,
+}
+
+impl Default for PositionMode {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
+/// Panel anchor point for popup positioning
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum PanelAnchor {
+    /// Start of panel (left for horizontal, top for vertical)
+    Start,
+    /// Center of panel
+    Center,
+    /// End of panel (right for horizontal, bottom for vertical)
+    End,
+    /// At applet icon location (current behavior)
+    AppletIcon,
+}
+
+impl Default for PanelAnchor {
+    fn default() -> Self {
+        Self::AppletIcon
+    }
+}
+
+/// Popup positioning configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PopupPosition {
+    /// Positioning mode
+    #[serde(default)]
+    pub mode: PositionMode,
+
+    /// Anchor point on panel (for panel-relative mode)
+    #[serde(default)]
+    pub anchor: PanelAnchor,
+
+    /// X offset from anchor (pixels, panel-relative)
+    #[serde(default)]
+    pub offset_x: i32,
+
+    /// Y offset from anchor (pixels, panel-relative)
+    #[serde(default)]
+    pub offset_y: i32,
+
+    /// Snap to edge when within threshold
+    #[serde(default = "default_true")]
+    pub snap_to_edge: bool,
+
+    /// Snap threshold distance (pixels)
+    #[serde(default = "default_snap_threshold")]
+    pub snap_threshold: u32,
+}
+
+impl Default for PopupPosition {
+    fn default() -> Self {
+        Self {
+            mode: PositionMode::Auto,
+            anchor: PanelAnchor::AppletIcon,
+            offset_x: 0,
+            offset_y: 0,
+            snap_to_edge: true,
+            snap_threshold: 20,
+        }
+    }
+}
+
 /// Applet configuration
 ///
 /// All settings are persisted using cosmic-config.
@@ -45,6 +120,10 @@ pub struct AppletConfig {
     /// Popup window height (pixels)
     #[serde(default = "default_popup_height")]
     pub popup_height: u32,
+
+    /// Popup positioning configuration
+    #[serde(default)]
+    pub popup_position: PopupPosition,
 
     // Behavior Settings
     /// Do Not Disturb mode enabled
@@ -96,6 +175,7 @@ impl Default for AppletConfig {
             show_app_icon: true,
             popup_width: default_popup_width(),
             popup_height: default_popup_height(),
+            popup_position: PopupPosition::default(),
             do_not_disturb: false,
             default_timeout: None,
             play_sound: false,
@@ -198,6 +278,32 @@ impl AppletConfig {
             }
         }
 
+        // Validate popup position offsets (±3000 pixels)
+        if !(-3000..=3000).contains(&self.popup_position.offset_x) {
+            tracing::warn!(
+                "Invalid popup offset_x: {}, must be -3000 to 3000",
+                self.popup_position.offset_x
+            );
+            return false;
+        }
+
+        if !(-3000..=3000).contains(&self.popup_position.offset_y) {
+            tracing::warn!(
+                "Invalid popup offset_y: {}, must be -3000 to 3000",
+                self.popup_position.offset_y
+            );
+            return false;
+        }
+
+        // Validate snap threshold (5-100 pixels)
+        if !(5..=100).contains(&self.popup_position.snap_threshold) {
+            tracing::warn!(
+                "Invalid snap_threshold: {}, must be 5-100",
+                self.popup_position.snap_threshold
+            );
+            return false;
+        }
+
         true
     }
 
@@ -249,6 +355,11 @@ impl AppletConfig {
                 self.app_filters.insert(truncated, value);
             }
         }
+
+        // Sanitize popup position
+        self.popup_position.offset_x = self.popup_position.offset_x.clamp(-3000, 3000);
+        self.popup_position.offset_y = self.popup_position.offset_y.clamp(-3000, 3000);
+        self.popup_position.snap_threshold = self.popup_position.snap_threshold.clamp(5, 100);
     }
 
     /// Migrate configuration from older version
@@ -296,6 +407,10 @@ fn default_max_history() -> usize {
 
 fn default_urgency_level() -> u8 {
     0 // Show all urgency levels
+}
+
+fn default_snap_threshold() -> u32 {
+    20 // pixels
 }
 
 #[cfg(test)]
