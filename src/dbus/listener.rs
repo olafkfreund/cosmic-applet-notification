@@ -19,7 +19,7 @@ use futures::stream::{Stream, StreamExt};
 use zbus::zvariant::OwnedValue;
 use zbus::{Connection, MatchRule, MessageStream, MessageType};
 
-use crate::dbus::types::{parse_actions, parse_hints, Notification};
+use crate::dbus::types::{Notification, parse_actions, parse_hints};
 
 /// Notification buffer size for backpressure management
 ///

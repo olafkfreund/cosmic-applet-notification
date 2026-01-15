@@ -2,7 +2,7 @@
 //
 // Tests URL detection, validation, and text segment parsing.
 
-use cosmic_applet_notifications::ui::url_parser::{parse_text, TextSegment};
+use cosmic_applet_notifications::ui::url_parser::{TextSegment, parse_text};
 
 #[test]
 fn test_parse_text_no_urls() {

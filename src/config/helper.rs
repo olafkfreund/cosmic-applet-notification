@@ -114,7 +114,7 @@ impl ConfigHelper {
 
         // Serialize config
         let serialized = ron::ser::to_string_pretty(config, Default::default())
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(|e| std::io::Error::other(e))?;
 
         // Write to file
         std::fs::write(&self.config_path, serialized)?;

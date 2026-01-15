@@ -3,9 +3,9 @@
 // Displays notification filter settings and controls for managing
 // per-application filters, urgency levels, and Do Not Disturb mode.
 
+use cosmic::Element;
 use cosmic::iced::Length;
 use cosmic::widget::{column, container, divider, row, text, toggler};
-use cosmic::Element;
 
 // Import button constructors
 use cosmic::widget::button::standard as button_standard;

@@ -27,8 +27,8 @@
           inherit system overlays;
         };
 
-        # Rust toolchain pinned to 1.82.0 (edition 2024 support required by COSMIC deps)
-        rustToolchain = pkgs.rust-bin.stable."1.82.0".default.override {
+        # Rust toolchain pinned to 1.90.0 (matches COSMIC applets upstream)
+        rustToolchain = pkgs.rust-bin.stable."1.90.0".default.override {
           extensions = [
             "rust-src" # For rust-analyzer
             "rust-analyzer" # LSP

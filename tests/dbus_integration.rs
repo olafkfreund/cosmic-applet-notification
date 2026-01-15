@@ -4,7 +4,7 @@
 // without requiring actual D-Bus connection.
 
 use cosmic_applet_notifications::dbus::{
-    parse_actions, parse_hints, Notification, NotificationAction, NotificationHints, Urgency,
+    Notification, NotificationAction, NotificationHints, Urgency, parse_actions, parse_hints,
 };
 use std::collections::HashMap;
 

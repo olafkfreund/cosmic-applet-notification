@@ -308,19 +308,19 @@ impl AppletConfig {
         }
 
         // Validate default_timeout (max 5 minutes = 300,000ms)
-        if let Some(timeout) = self.default_timeout {
-            if timeout > 300_000 {
-                tracing::warn!("Invalid default_timeout: {}ms, must be ≤300000ms", timeout);
-                return false;
-            }
+        if let Some(timeout) = self.default_timeout
+            && timeout > 300_000
+        {
+            tracing::warn!("Invalid default_timeout: {}ms, must be ≤300000ms", timeout);
+            return false;
         }
 
         // Validate history_retention_days (max 365 days = 1 year)
-        if let Some(days) = self.history_retention_days {
-            if days > 365 {
-                tracing::warn!("Invalid history_retention_days: {}, must be ≤365", days);
-                return false;
-            }
+        if let Some(days) = self.history_retention_days
+            && days > 365
+        {
+            tracing::warn!("Invalid history_retention_days: {}, must be ≤365", days);
+            return false;
         }
 
         // Validate app_filters (max 1000 entries, max 256 chars per name)
@@ -329,7 +329,7 @@ impl AppletConfig {
             return false;
         }
 
-        for (app_name, _) in &self.app_filters {
+        for app_name in self.app_filters.keys() {
             if app_name.len() > 256 {
                 tracing::warn!("App filter name too long: {} bytes", app_name.len());
                 return false;
@@ -386,17 +386,17 @@ impl AppletConfig {
         self.min_urgency_level = self.min_urgency_level.min(2);
 
         // Sanitize optional timeout (max 5 minutes)
-        if let Some(timeout) = self.default_timeout {
-            if timeout > 300_000 {
-                self.default_timeout = Some(300_000);
-            }
+        if let Some(timeout) = self.default_timeout
+            && timeout > 300_000
+        {
+            self.default_timeout = Some(300_000);
         }
 
         // Sanitize optional retention period (max 1 year)
-        if let Some(days) = self.history_retention_days {
-            if days > 365 {
-                self.history_retention_days = Some(365);
-            }
+        if let Some(days) = self.history_retention_days
+            && days > 365
+        {
+            self.history_retention_days = Some(365);
         }
 
         // Sanitize app filters (limit count and name length)

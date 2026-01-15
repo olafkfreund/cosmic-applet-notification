@@ -84,7 +84,7 @@ fn test_manager_filtering_cascade() {
     assert_eq!(action, NotificationAction::AddedToHistoryOnly);
 
     assert_eq!(manager.active_count(), 1); // Only normal notification displayed
-                                           // Only filtered notifications are in history immediately; active ones go to history when dismissed
+    // Only filtered notifications are in history immediately; active ones go to history when dismissed
     assert_eq!(manager.history().len(), 2); // 2 filtered notifications in history
 }
 

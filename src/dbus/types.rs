@@ -144,10 +144,12 @@ impl Notification {
 /// Determines the importance and presentation of the notification
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[repr(u8)]
+#[derive(Default)]
 pub enum Urgency {
     /// Low urgency - background information
     Low = 0,
     /// Normal urgency - standard notification (default)
+    #[default]
     Normal = 1,
     /// Critical urgency - requires immediate attention
     Critical = 2,
@@ -167,12 +169,6 @@ impl Urgency {
     /// Convert urgency to u8 value
     pub fn to_u8(self) -> u8 {
         self as u8
-    }
-}
-
-impl Default for Urgency {
-    fn default() -> Self {
-        Urgency::Normal
     }
 }
 

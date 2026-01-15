@@ -2,16 +2,17 @@
 //
 // Displays a single notification with app icon, summary, body, timestamp, and dismiss button.
 
+use cosmic::Element;
 use cosmic::iced::Length;
 use cosmic::widget::{button, column, container, row, text};
-use cosmic::Element;
 
 // Import button constructors
 use cosmic::widget::button::link as button_link;
 use cosmic::widget::button::standard as button_standard;
+use cosmic::widget::button::suggested as button_suggested;
 
 use crate::dbus::Notification;
-use crate::ui::url_parser::{parse_text, TextSegment};
+use crate::ui::url_parser::{TextSegment, parse_text};
 
 /// Create a notification card widget
 ///
@@ -178,14 +179,16 @@ where
         let action_label = action.label.clone();
         let is_selected = selected_action_index == Some(index);
 
-        let mut action_button = button_standard(action_label)
-            .on_press(on_action(notification_id, action_key))
-            .padding([4, 12]);
-
-        // Apply accent styling to selected action
-        if is_selected {
-            action_button = action_button.style(cosmic::theme::Button::Suggested);
-        }
+        // Use suggested button styling for selected action
+        let action_button = if is_selected {
+            button_suggested(action_label)
+                .on_press(on_action(notification_id, action_key))
+                .padding([4, 12])
+        } else {
+            button_standard(action_label)
+                .on_press(on_action(notification_id, action_key))
+                .padding([4, 12])
+        };
 
         action_row = action_row.push(action_button);
     }

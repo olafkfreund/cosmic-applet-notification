@@ -184,22 +184,22 @@ impl NotificationApplet {
         }
 
         // Fix out-of-bounds notification selection
-        if let Some(idx) = self.selected_notification_index {
-            if idx >= notification_count {
-                self.selected_notification_index = Some(notification_count - 1);
-                self.clear_action_selection();
-            }
+        if let Some(idx) = self.selected_notification_index
+            && idx >= notification_count
+        {
+            self.selected_notification_index = Some(notification_count - 1);
+            self.clear_action_selection();
         }
 
         // Fix out-of-bounds action selection
-        if let Some(notif_idx) = self.selected_notification_index {
-            if let Some(action_idx) = self.selected_action_index {
-                let active_notifications = self.manager.get_active_notifications();
-                if let Some(notification) = active_notifications.get(notif_idx) {
-                    if action_idx >= notification.actions.len() {
-                        self.clear_action_selection();
-                    }
-                }
+        if let Some(notif_idx) = self.selected_notification_index
+            && let Some(action_idx) = self.selected_action_index
+        {
+            let active_notifications = self.manager.get_active_notifications();
+            if let Some(notification) = active_notifications.get(notif_idx)
+                && action_idx >= notification.actions.len()
+            {
+                self.clear_action_selection();
             }
         }
     }
@@ -714,83 +714,76 @@ impl Application for NotificationApplet {
             Message::KeyboardEvent(event) => {
                 use cosmic::iced::keyboard::{Event as KeyEvent, Key};
 
-                match event {
-                    KeyEvent::KeyPressed { key, modifiers, .. } => {
-                        match key {
-                            // Escape key closes popup
-                            Key::Named(cosmic::iced::keyboard::key::Named::Escape) => {
-                                if self.popup_id.is_some() {
-                                    return self.update(Message::ClosePopup);
-                                }
+                if let KeyEvent::KeyPressed { key, modifiers, .. } = event {
+                    match key {
+                        // Escape key closes popup
+                        Key::Named(cosmic::iced::keyboard::key::Named::Escape) => {
+                            if self.popup_id.is_some() {
+                                return self.update(Message::ClosePopup);
                             }
-
-                            // Ctrl+D toggles Do Not Disturb
-                            Key::Character(c) if c.as_str() == "d" && modifiers.control() => {
-                                return self.update(Message::ToggleDND);
-                            }
-
-                            // Ctrl+1/2/3 for urgency levels
-                            Key::Character(c) if c.as_str() == "1" && modifiers.control() => {
-                                return self.update(Message::SetUrgencyLevel(0));
-                            }
-                            Key::Character(c) if c.as_str() == "2" && modifiers.control() => {
-                                return self.update(Message::SetUrgencyLevel(1));
-                            }
-                            Key::Character(c) if c.as_str() == "3" && modifiers.control() => {
-                                return self.update(Message::SetUrgencyLevel(2));
-                            }
-
-                            // Arrow keys for navigation
-                            Key::Named(cosmic::iced::keyboard::key::Named::ArrowUp) => {
-                                if self.popup_id.is_some() {
-                                    return self.update(Message::NavigateUp);
-                                }
-                            }
-                            Key::Named(cosmic::iced::keyboard::key::Named::ArrowDown) => {
-                                if self.popup_id.is_some() {
-                                    return self.update(Message::NavigateDown);
-                                }
-                            }
-
-                            // Enter key activates selected notification
-                            Key::Named(cosmic::iced::keyboard::key::Named::Enter) => {
-                                if self.popup_id.is_some() {
-                                    return self.update(Message::ActivateSelected);
-                                }
-                            }
-
-                            // Delete key dismisses selected notification
-                            Key::Named(cosmic::iced::keyboard::key::Named::Delete) => {
-                                if self.popup_id.is_some() {
-                                    return self.update(Message::DismissSelected);
-                                }
-                            }
-
-                            // Tab key cycles through actions
-                            Key::Named(cosmic::iced::keyboard::key::Named::Tab) => {
-                                if self.popup_id.is_some() && !modifiers.shift() {
-                                    return self.update(Message::CycleActions);
-                                }
-                            }
-
-                            // Number keys (1-9) for quick action invocation
-                            Key::Character(c) if !modifiers.control() && !modifiers.alt() => {
-                                if self.popup_id.is_some() {
-                                    if let Some(digit) =
-                                        c.chars().next().and_then(|ch| ch.to_digit(10))
-                                    {
-                                        if digit >= 1 && digit <= 9 {
-                                            return self
-                                                .update(Message::InvokeQuickAction(digit as u8));
-                                        }
-                                    }
-                                }
-                            }
-
-                            _ => {}
                         }
+
+                        // Ctrl+D toggles Do Not Disturb
+                        Key::Character(c) if c.as_str() == "d" && modifiers.control() => {
+                            return self.update(Message::ToggleDND);
+                        }
+
+                        // Ctrl+1/2/3 for urgency levels
+                        Key::Character(c) if c.as_str() == "1" && modifiers.control() => {
+                            return self.update(Message::SetUrgencyLevel(0));
+                        }
+                        Key::Character(c) if c.as_str() == "2" && modifiers.control() => {
+                            return self.update(Message::SetUrgencyLevel(1));
+                        }
+                        Key::Character(c) if c.as_str() == "3" && modifiers.control() => {
+                            return self.update(Message::SetUrgencyLevel(2));
+                        }
+
+                        // Arrow keys for navigation
+                        Key::Named(cosmic::iced::keyboard::key::Named::ArrowUp) => {
+                            if self.popup_id.is_some() {
+                                return self.update(Message::NavigateUp);
+                            }
+                        }
+                        Key::Named(cosmic::iced::keyboard::key::Named::ArrowDown) => {
+                            if self.popup_id.is_some() {
+                                return self.update(Message::NavigateDown);
+                            }
+                        }
+
+                        // Enter key activates selected notification
+                        Key::Named(cosmic::iced::keyboard::key::Named::Enter) => {
+                            if self.popup_id.is_some() {
+                                return self.update(Message::ActivateSelected);
+                            }
+                        }
+
+                        // Delete key dismisses selected notification
+                        Key::Named(cosmic::iced::keyboard::key::Named::Delete) => {
+                            if self.popup_id.is_some() {
+                                return self.update(Message::DismissSelected);
+                            }
+                        }
+
+                        // Tab key cycles through actions
+                        Key::Named(cosmic::iced::keyboard::key::Named::Tab) => {
+                            if self.popup_id.is_some() && !modifiers.shift() {
+                                return self.update(Message::CycleActions);
+                            }
+                        }
+
+                        // Number keys (1-9) for quick action invocation
+                        Key::Character(c) if !modifiers.control() && !modifiers.alt() => {
+                            if self.popup_id.is_some()
+                                && let Some(digit) = c.chars().next().and_then(|ch| ch.to_digit(10))
+                                && (1..=9).contains(&digit)
+                            {
+                                return self.update(Message::InvokeQuickAction(digit as u8));
+                            }
+                        }
+
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
 
@@ -825,12 +818,39 @@ impl Application for NotificationApplet {
                     }
                 }
             }
+
+            // Animation messages (Phase 4B - architecture only, not yet implemented)
+            Message::AnimationFrame => {
+                // TODO: Update animation states and progress indicators
+                tracing::trace!("Animation frame tick");
+            }
+
+            Message::StartAppearAnimation(_notification_id) => {
+                // TODO: Initialize appear animation for notification
+                tracing::debug!(
+                    "Start appear animation for notification {}",
+                    _notification_id
+                );
+            }
+
+            Message::StartDismissAnimation(_notification_id) => {
+                // TODO: Initialize dismiss animation for notification
+                tracing::debug!(
+                    "Start dismiss animation for notification {}",
+                    _notification_id
+                );
+            }
+
+            Message::CompleteNotificationDismissal(_notification_id) => {
+                // TODO: Complete dismissal after animation finishes
+                tracing::debug!("Complete dismissal for notification {}", _notification_id);
+            }
         }
 
         Task::none()
     }
 
-    fn view(&self) -> Element<Self::Message> {
+    fn view(&self) -> Element<'_, Self::Message> {
         // Panel icon with notification count badge
         // TODO: Add notification count badge overlay when layer_container API is stable
         self.core
@@ -840,7 +860,7 @@ impl Application for NotificationApplet {
             .into()
     }
 
-    fn view_window(&self, id: cosmic::iced::window::Id) -> Element<Self::Message> {
+    fn view_window(&self, id: cosmic::iced::window::Id) -> Element<'_, Self::Message> {
         use cosmic::widget::{column, divider, text};
 
         if Some(id) == self.popup_id {
@@ -852,8 +872,8 @@ impl Application for NotificationApplet {
                 notifications,
                 self.selected_notification_index,
                 self.selected_action_index,
-                |id| Message::DismissNotification(id),
-                |url| Message::OpenUrl(url),
+                Message::DismissNotification,
+                Message::OpenUrl,
                 |notification_id, action_key| Message::InvokeAction {
                     notification_id,
                     action_key,
@@ -864,19 +884,19 @@ impl Application for NotificationApplet {
             let filter_settings = ui::widgets::filter_settings(
                 &self.config,
                 Message::ToggleDND,
-                |level| Message::SetUrgencyLevel(level),
-                |app_name, enabled| Message::ToggleAppFilter(app_name, enabled),
+                Message::SetUrgencyLevel,
+                Message::ToggleAppFilter,
             );
 
             // Create position settings view
             let position_settings = ui::widgets::position_settings(
                 &self.config.popup_position,
-                |mode| Message::SetPositionMode(mode),
-                |anchor| Message::SetPanelAnchor(anchor),
-                |x| Message::SetOffsetX(x),
-                |y| Message::SetOffsetY(y),
+                Message::SetPositionMode,
+                Message::SetPanelAnchor,
+                Message::SetOffsetX,
+                Message::SetOffsetY,
                 Message::ToggleSnapToEdge,
-                |threshold| Message::SetSnapThreshold(threshold),
+                Message::SetSnapThreshold,
                 Message::PreviewPosition,
             );
 
@@ -911,11 +931,10 @@ impl Application for NotificationApplet {
             // Periodic tick every 60 seconds to check for expired notifications
             time::every(Duration::from_secs(60)).map(|_| Message::Tick),
             // Keyboard events for shortcuts
-            cosmic::iced::event::listen().filter_map(|event| {
+            cosmic::iced::event::listen_with(|event, _status, _window| {
                 if let cosmic::iced::Event::Keyboard(keyboard_event) = event {
                     Some(Message::KeyboardEvent(keyboard_event))
                 } else {
-                    // Ignore non-keyboard events
                     None
                 }
             }),

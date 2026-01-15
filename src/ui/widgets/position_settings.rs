@@ -3,9 +3,9 @@
 // Displays popup position configuration controls including mode selection,
 // anchor point selection, offset sliders, and position preview.
 
+use cosmic::Element;
 use cosmic::iced::Length;
 use cosmic::widget::{column, container, divider, row, slider, text, toggler};
-use cosmic::Element;
 
 // Import button constructors
 use cosmic::widget::button::standard as button_standard;
