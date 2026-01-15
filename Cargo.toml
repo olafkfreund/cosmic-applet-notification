@@ -70,6 +70,10 @@ inherits = "release"
 [profile.dev.package."*"]
 opt-level = 3
 
+[lib]
+name = "cosmic_applet_notifications"
+path = "src/lib.rs"
+
 [[bin]]
 name = "cosmic-applet-notifications"
 path = "src/main.rs"

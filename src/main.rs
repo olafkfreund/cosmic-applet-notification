@@ -3,11 +3,7 @@
 
 use cosmic::app::Settings;
 use cosmic::{Application, Element};
-
-mod config;
-mod dbus;
-mod manager;
-mod ui;
+use cosmic_applet_notifications::{config, dbus, manager, ui};
 
 /// Main application state
 pub struct NotificationApplet {
