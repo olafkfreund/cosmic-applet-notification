@@ -3,10 +3,10 @@ name = "cosmic-applet-notifications"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90.0"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Olaf K-Freund <olaf.loken@gmail.com>"]
 description = "Custom notification display applet for COSMIC Desktop"
 license = "GPL-3.0-only"
-repository = "https://github.com/yourusername/cosmic-notification-applet"
+repository = "https://github.com/olafkfreund/cosmic-applet-notification"
 keywords = ["cosmic", "desktop", "notifications", "applet", "wayland"]
 categories = ["gui", "desktop-environment"]
 
