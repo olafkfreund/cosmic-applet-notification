@@ -2,7 +2,7 @@
 name = "cosmic-applet-notifications"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.82.0"
 authors = ["Your Name <your.email@example.com>"]
 description = "Custom notification display applet for COSMIC Desktop"
 license = "GPL-3.0-only"
@@ -11,7 +11,7 @@ keywords = ["cosmic", "desktop", "notifications", "applet", "wayland"]
 categories = ["gui", "desktop-environment"]
 
 [dependencies]
-# COSMIC Desktop toolkit
+# COSMIC Desktop toolkit (requires Rust 1.82+ for edition 2024)
 libcosmic = { git = "https://github.com/pop-os/libcosmic", features = ["applet", "tokio"] }
 
 # D-Bus communication
