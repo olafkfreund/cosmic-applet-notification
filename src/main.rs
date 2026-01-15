@@ -31,6 +31,9 @@ pub enum Message {
     /// A new notification was received from D-Bus
     NotificationReceived(dbus::Notification),
 
+    /// Dismiss a notification by ID
+    DismissNotification(u32),
+
     /// Tick for periodic updates
     Tick,
 }
@@ -119,8 +122,15 @@ impl Application for NotificationApplet {
                     notification.summary,
                     action
                 );
+            }
 
-                // TODO: Update UI to show notification count in panel icon (Issue #6)
+            Message::DismissNotification(id) => {
+                // Remove notification from manager
+                if self.manager.remove_notification(id) {
+                    tracing::debug!("Dismissed notification {}", id);
+                } else {
+                    tracing::warn!("Failed to dismiss notification {} (not found)", id);
+                }
             }
 
             Message::Tick => {
@@ -131,8 +141,6 @@ impl Application for NotificationApplet {
                     self.manager.remove_notification(id);
                     tracing::debug!("Removed expired notification {}", id);
                 }
-
-                // TODO: Update UI if needed
             }
         }
 
@@ -140,20 +148,45 @@ impl Application for NotificationApplet {
     }
 
     fn view(&self) -> Element<Self::Message> {
-        // Panel icon
-        self.core
+        use cosmic::widget::{container, text};
+
+        let active_count = self.manager.active_count();
+
+        // Panel icon with notification count badge
+        let icon = self
+            .core
             .applet
             .icon_button("notification-symbolic")
-            .on_press_down(Message::TogglePopup)
-            .into()
+            .on_press_down(Message::TogglePopup);
+
+        // If there are active notifications, show count badge
+        if active_count > 0 {
+            let badge = container(text(active_count.to_string()).size(10))
+                .padding(2)
+                .style(cosmic::theme::Container::Primary);
+
+            cosmic::widget::layer_container(icon)
+                .layer(
+                    cosmic::iced_widget::layer_container::Anchor::TopRight,
+                    badge,
+                )
+                .into()
+        } else {
+            icon.into()
+        }
     }
 
     fn view_window(&self, id: cosmic::iced::window::Id) -> Element<Self::Message> {
-        use cosmic::widget::{container, text};
+        use cosmic::widget::text;
 
         if Some(id) == self.popup_id {
-            // Popup window content
-            let content = container(text("Notification Applet").size(16)).padding(20);
+            // Get active notifications from manager
+            let notifications = self.manager.active_notifications();
+
+            // Create notification list view
+            let content = ui::widgets::notification_list(notifications, |id| {
+                Message::DismissNotification(id)
+            });
 
             self.core.applet.popup_container(content).into()
         } else {
@@ -167,9 +200,16 @@ impl Application for NotificationApplet {
     }
 
     fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
-        // Subscribe to D-Bus notifications using the subscription pattern
-        // This replaces the need for manual threading and channels
-        dbus::subscribe()
+        use cosmic::iced::time;
+        use std::time::Duration;
+
+        // Combine D-Bus notifications with periodic tick for expiration checking
+        cosmic::iced::Subscription::batch([
+            // D-Bus notification listener
+            dbus::subscribe(),
+            // Periodic tick every 60 seconds to check for expired notifications
+            time::every(Duration::from_secs(60)).map(|_| Message::Tick),
+        ])
     }
 }
 
