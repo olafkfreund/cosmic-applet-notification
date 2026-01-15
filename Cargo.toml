@@ -37,6 +37,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Configuration (will use cosmic-config when available)
 ron = "0.8"  # Rusty Object Notation
+dirs = "5"   # XDG base directory spec
 
 # URL parsing (for clickable URLs)
 url = "2"

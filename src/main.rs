@@ -13,10 +13,14 @@ pub struct NotificationApplet {
     /// Notification manager
     manager: manager::NotificationManager,
 
+    /// Configuration helper
+    config_helper: config::ConfigHelper,
+
+    /// Current configuration
+    config: config::AppletConfig,
+
     /// Current popup window ID
     popup_id: Option<cosmic::iced::window::Id>,
-    // TODO: Add configuration
-    // config: config::AppletConfig,
 }
 
 /// Messages that drive the application
@@ -33,6 +37,9 @@ pub enum Message {
 
     /// Dismiss a notification by ID
     DismissNotification(u32),
+
+    /// Update configuration
+    UpdateConfig(config::AppletConfig),
 
     /// Tick for periodic updates
     Tick,
@@ -64,13 +71,24 @@ impl Application for NotificationApplet {
         core: cosmic::app::Core,
         _flags: Self::Flags,
     ) -> (Self, cosmic::iced::Command<Self::Message>) {
+        // Load configuration
+        let config_helper = config::ConfigHelper::new();
+        let config = config_helper.load();
+
+        tracing::info!("Configuration loaded from {:?}", config_helper.path());
+        tracing::debug!("Config: {:?}", config);
+
+        // Initialize manager with config settings
+        let mut manager = manager::NotificationManager::new();
+        manager.set_do_not_disturb(config.do_not_disturb);
+
         let app = NotificationApplet {
             core,
-            manager: manager::NotificationManager::new(),
+            manager,
+            config_helper,
+            config,
             popup_id: None,
         };
-
-        // TODO: Load configuration
 
         (app, cosmic::iced::Command::none())
     }
@@ -93,7 +111,7 @@ impl Application for NotificationApplet {
                     let popup_settings = self.core.applet.get_popup_settings(
                         self.core.main_window_id().unwrap(),
                         id,
-                        Some((400, 600)), // width, height
+                        Some((self.config.popup_width, self.config.popup_height)),
                         None,
                         None,
                     );
@@ -131,6 +149,27 @@ impl Application for NotificationApplet {
                 } else {
                     tracing::warn!("Failed to dismiss notification {} (not found)", id);
                 }
+            }
+
+            Message::UpdateConfig(new_config) => {
+                // Validate and save config
+                let mut config = new_config;
+                if !config.validate() {
+                    tracing::warn!("Invalid config, sanitizing");
+                    config.sanitize();
+                }
+
+                // Apply config to manager
+                self.manager.set_do_not_disturb(config.do_not_disturb);
+
+                // Save config
+                if let Err(e) = self.config_helper.save(&config) {
+                    tracing::error!("Failed to save config: {}", e);
+                } else {
+                    tracing::info!("Configuration saved");
+                }
+
+                self.config = config;
             }
 
             Message::Tick => {
