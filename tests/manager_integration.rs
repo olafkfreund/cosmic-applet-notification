@@ -39,7 +39,10 @@ fn test_manager_lifecycle() {
     assert_eq!(manager.active_count(), 1);
 
     // Remove notification
-    let id = manager.active_notifications()[0].id;
+    let id = manager
+        .get_notification_at(0)
+        .expect("notification should exist")
+        .id;
     assert!(manager.remove_notification(id));
     assert_eq!(manager.active_count(), 0);
 }
@@ -81,7 +84,8 @@ fn test_manager_filtering_cascade() {
     assert_eq!(action, NotificationAction::AddedToHistoryOnly);
 
     assert_eq!(manager.active_count(), 1); // Only normal notification displayed
-    assert_eq!(manager.history().len(), 3); // All in history
+                                           // Only filtered notifications are in history immediately; active ones go to history when dismissed
+    assert_eq!(manager.history().len(), 2); // 2 filtered notifications in history
 }
 
 #[test]
@@ -109,7 +113,10 @@ fn test_manager_notification_replacement() {
     // Add original notification
     let mut notif1 = create_notification("test", "Original", Urgency::Normal);
     manager.add_notification(notif1.clone());
-    let original_id = manager.active_notifications()[0].id;
+    let original_id = manager
+        .get_notification_at(0)
+        .expect("notification should exist")
+        .id;
 
     assert_eq!(manager.active_count(), 1);
 
@@ -120,7 +127,13 @@ fn test_manager_notification_replacement() {
 
     // Should still have only 1 active notification
     assert_eq!(manager.active_count(), 1);
-    assert_eq!(manager.active_notifications()[0].summary, "Replacement");
+    assert_eq!(
+        manager
+            .get_notification_at(0)
+            .expect("notification should exist")
+            .summary,
+        "Replacement"
+    );
 }
 
 #[test]
@@ -231,7 +244,10 @@ fn test_manager_transient_notifications() {
 
     assert_eq!(manager.active_count(), 1);
 
-    let id = manager.active_notifications()[0].id;
+    let id = manager
+        .get_notification_at(0)
+        .expect("notification should exist")
+        .id;
     manager.remove_notification(id);
 
     // Transient notifications don't go to history
@@ -269,17 +285,22 @@ fn test_manager_history_integration() {
 fn test_manager_cleanup_history() {
     let mut manager = NotificationManager::new();
 
-    // Add many notifications to history
+    // Add many notifications - first 10 stay active, rest (140) get evicted to history
+    // But history is limited to MAX_HISTORY_SIZE (100), so only last 100 are kept
     for i in 0..150 {
         let notif = create_notification("test", &format!("Notification {}", i), Urgency::Normal);
         manager.add_notification(notif);
     }
 
-    // Cleanup with max 100 items
+    // Should have 10 active, 100 in history (capped at MAX_HISTORY_SIZE)
+    assert_eq!(manager.active_count(), 10);
+    assert_eq!(manager.history().len(), 100);
+
+    // Cleanup with max 100 items - should remove 0 (already at limit)
     let removed = manager.cleanup_history(100, None);
 
-    assert!(removed > 0);
-    assert!(manager.history().len() <= 100);
+    assert_eq!(removed, 0);
+    assert_eq!(manager.history().len(), 100);
 }
 
 #[test]

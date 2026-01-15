@@ -1,7 +1,7 @@
 // COSMIC Notification Applet
 // Main entry point
 
-use cosmic::app::Settings;
+use cosmic::iced::Task;
 use cosmic::{Application, Element};
 use cosmic_applet_notifications::{config, dbus, manager, ui};
 
@@ -91,7 +91,7 @@ impl Application for NotificationApplet {
     fn init(
         core: cosmic::app::Core,
         _flags: Self::Flags,
-    ) -> (Self, cosmic::iced::Command<Self::Message>) {
+    ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         // Load configuration
         let config_helper = config::ConfigHelper::new();
         let config = config_helper.load();
@@ -120,10 +120,10 @@ impl Application for NotificationApplet {
             popup_id: None,
         };
 
-        (app, cosmic::iced::Command::none())
+        (app, Task::none())
     }
 
-    fn update(&mut self, message: Self::Message) -> cosmic::iced::Command<Self::Message> {
+    fn update(&mut self, message: Self::Message) -> Task<cosmic::Action<Self::Message>> {
         use cosmic::iced::window;
 
         match message {
@@ -293,15 +293,10 @@ impl Application for NotificationApplet {
             }
 
             Message::KeyboardEvent(event) => {
-                use cosmic::iced::keyboard::{Event as KeyEvent, Key, Modifiers};
+                use cosmic::iced::keyboard::{Event as KeyEvent, Key};
 
                 match event {
-                    KeyEvent::KeyPressed {
-                        key,
-                        modifiers,
-                        location: _,
-                        text: _,
-                    } => {
+                    KeyEvent::KeyPressed { key, modifiers, .. } => {
                         match key {
                             // Escape key closes popup
                             Key::Named(cosmic::iced::keyboard::key::Named::Escape) => {
@@ -363,36 +358,17 @@ impl Application for NotificationApplet {
             }
         }
 
-        cosmic::iced::Command::none()
+        Task::none()
     }
 
     fn view(&self) -> Element<Self::Message> {
-        use cosmic::widget::{container, text};
-
-        let active_count = self.manager.active_count();
-
         // Panel icon with notification count badge
-        let icon = self
-            .core
+        // TODO: Add notification count badge overlay when layer_container API is stable
+        self.core
             .applet
             .icon_button("notification-symbolic")
-            .on_press_down(Message::TogglePopup);
-
-        // If there are active notifications, show count badge
-        if active_count > 0 {
-            let badge = container(text(active_count.to_string()).size(10))
-                .padding(2)
-                .style(cosmic::theme::Container::Primary);
-
-            cosmic::widget::layer_container(icon)
-                .layer(
-                    cosmic::iced_widget::layer_container::Anchor::TopRight,
-                    badge,
-                )
-                .into()
-        } else {
-            icon.into()
-        }
+            .on_press_down(Message::TogglePopup)
+            .into()
     }
 
     fn view_window(&self, id: cosmic::iced::window::Id) -> Element<Self::Message> {
@@ -400,7 +376,7 @@ impl Application for NotificationApplet {
 
         if Some(id) == self.popup_id {
             // Get active notifications from manager
-            let notifications = self.manager.active_notifications();
+            let notifications = self.manager.get_active_notifications();
 
             // Create notification list view with clickable URLs and action buttons
             let notification_list = ui::widgets::notification_list(
@@ -422,12 +398,11 @@ impl Application for NotificationApplet {
             );
 
             // Combine notification list and settings
-            let content = column![
-                notification_list,
-                divider::horizontal::default(),
-                filter_settings
-            ]
-            .spacing(0);
+            let content = column()
+                .push(notification_list)
+                .push(divider::horizontal::default())
+                .push(filter_settings)
+                .spacing(0.0);
 
             self.core.applet.popup_container(content).into()
         } else {
@@ -475,5 +450,5 @@ fn main() -> cosmic::iced::Result {
     tracing::info!("Starting COSMIC Notification Applet");
 
     // Run the applet
-    cosmic::applet::run::<NotificationApplet>(false, ())
+    cosmic::applet::run::<NotificationApplet>(())
 }

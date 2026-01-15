@@ -113,6 +113,18 @@ impl NotificationManager {
     /// - Filtering (DND, app filters, urgency)
     /// - History management
     /// - Active notification limits
+    ///
+    /// # History Behavior
+    ///
+    /// Notifications are added to history ONLY when:
+    /// 1. Filtered out (DND, app filter, urgency) → immediate history addition
+    /// 2. Dismissed by user → added on removal
+    /// 3. Evicted due to MAX_ACTIVE_NOTIFICATIONS limit → added on eviction
+    ///
+    /// **Rationale**: Active notifications should remain in the active list until
+    /// explicitly dismissed or evicted. This prevents duplicate entries in history
+    /// and ensures history only contains notifications that are no longer visible.
+    /// Users expect history to show *past* notifications, not current ones.
     pub fn add_notification(&mut self, mut notification: Notification) -> NotificationAction {
         // Assign unique ID if not already assigned
         if notification.id == 0 {
@@ -132,16 +144,17 @@ impl NotificationManager {
             return NotificationAction::AddedToHistoryOnly;
         }
 
-        // Add to history first
-        self.add_to_history(notification.clone());
-
-        // Add to active notifications
+        // Add to active notifications (will be added to history when dismissed)
         self.active_notifications.push_back(notification);
 
         // Enforce maximum active notifications (FIFO)
-        // Evicted notifications are already in history, don't add again
+        // Evicted notifications go to history if not transient
         while self.active_notifications.len() > MAX_ACTIVE_NOTIFICATIONS {
-            self.active_notifications.pop_front();
+            if let Some(evicted) = self.active_notifications.pop_front() {
+                if !evicted.is_transient() {
+                    self.add_to_history(evicted);
+                }
+            }
         }
 
         NotificationAction::Displayed
@@ -152,10 +165,11 @@ impl NotificationManager {
     /// Removes from active notifications and adds to history if not already there.
     pub fn remove_notification(&mut self, id: u32) -> bool {
         if let Some(pos) = self.active_notifications.iter().position(|n| n.id == id) {
-            let notification = self.active_notifications.remove(pos);
-            // Add to history if transient flag not set
-            if !notification.is_transient() {
-                self.add_to_history(notification);
+            if let Some(notification) = self.active_notifications.remove(pos) {
+                // Add to history if transient flag not set
+                if !notification.is_transient() {
+                    self.add_to_history(notification);
+                }
             }
             true
         } else {
@@ -166,7 +180,9 @@ impl NotificationManager {
     /// Clear all active notifications
     pub fn clear_all(&mut self) {
         // Move all active to history (unless transient)
-        for notification in self.active_notifications.drain(..) {
+        // Collect first to avoid double mutable borrow
+        let notifications: Vec<_> = self.active_notifications.drain(..).collect();
+        for notification in notifications {
             if !notification.is_transient() {
                 self.add_to_history(notification);
             }
@@ -178,9 +194,21 @@ impl NotificationManager {
         self.notification_history.clear();
     }
 
-    /// Get active notifications
-    pub fn active_notifications(&self) -> &[Notification] {
+    /// Get active notifications without requiring contiguous memory
+    ///
+    /// Returns a reference to the underlying VecDeque, which can be iterated
+    /// efficiently without reallocation. Prefer this over `make_contiguous()`
+    /// unless you specifically need a slice.
+    pub fn get_active_notifications(&self) -> &VecDeque<Notification> {
         &self.active_notifications
+    }
+
+    /// Get a specific notification by index (0-based)
+    ///
+    /// More efficient than accessing via slice since VecDeque::get() doesn't
+    /// require making the buffer contiguous. Returns None if index is out of bounds.
+    pub fn get_notification_at(&self, index: usize) -> Option<&Notification> {
+        self.active_notifications.get(index)
     }
 
     /// Get number of active notifications
@@ -460,7 +488,8 @@ mod tests {
         let action = manager.add_notification(notification);
         assert_eq!(action, NotificationAction::Displayed);
         assert_eq!(manager.active_count(), 1);
-        assert_eq!(manager.history().len(), 1);
+        // Notifications are only added to history when dismissed, not when first created
+        assert_eq!(manager.history().len(), 0);
     }
 
     #[test]
@@ -469,7 +498,10 @@ mod tests {
         let notification = create_test_notification("test", "Test");
 
         manager.add_notification(notification);
-        let id = manager.active_notifications()[0].id;
+        let id = manager
+            .get_notification_at(0)
+            .expect("notification should exist")
+            .id;
 
         assert!(manager.remove_notification(id));
         assert_eq!(manager.active_count(), 0);
@@ -479,10 +511,13 @@ mod tests {
     fn test_notification_replacement() {
         let mut manager = NotificationManager::new();
 
-        let mut notif1 = create_test_notification("test", "Original");
+        let notif1 = create_test_notification("test", "Original");
         manager.add_notification(notif1.clone());
 
-        let id1 = manager.active_notifications()[0].id;
+        let id1 = manager
+            .get_notification_at(0)
+            .expect("notification should exist")
+            .id;
 
         // Create replacement notification
         let mut notif2 = create_test_notification("test", "Replacement");
@@ -492,7 +527,13 @@ mod tests {
 
         // Should only have one notification (replacement)
         assert_eq!(manager.active_count(), 1);
-        assert_eq!(manager.active_notifications()[0].summary, "Replacement");
+        assert_eq!(
+            manager
+                .get_notification_at(0)
+                .expect("notification should exist")
+                .summary,
+            "Replacement"
+        );
     }
 
     #[test]
@@ -624,7 +665,10 @@ mod tests {
         // Should be active but not in history
         assert_eq!(manager.active_count(), 1);
 
-        let id = manager.active_notifications()[0].id;
+        let id = manager
+            .get_notification_at(0)
+            .expect("notification should exist")
+            .id;
         manager.remove_notification(id);
 
         // Still should not be in history after removal
@@ -692,9 +736,20 @@ mod tests {
         let notification = create_test_notification("test", "Test");
         manager.add_notification(notification);
 
-        // History should only have one entry
-        assert_eq!(manager.history().len(), 1);
+        // Notification should be active but not in history yet
         assert_eq!(manager.active_count(), 1);
+        assert_eq!(manager.history().len(), 0);
+
+        // Get the ID that was assigned by the manager
+        let notification_id = manager
+            .get_notification_at(0)
+            .expect("notification should exist")
+            .id;
+
+        // After dismissing, should be in history once
+        manager.remove_notification(notification_id);
+        assert_eq!(manager.active_count(), 0);
+        assert_eq!(manager.history().len(), 1);
     }
 
     #[test]
@@ -710,8 +765,9 @@ mod tests {
         // Should have exactly MAX_ACTIVE_NOTIFICATIONS active
         assert_eq!(manager.active_count(), MAX_ACTIVE_NOTIFICATIONS);
 
-        // All notifications should be in history (including evicted ones)
-        assert_eq!(manager.history().len(), MAX_ACTIVE_NOTIFICATIONS + 2);
+        // Only the 2 evicted notifications should be in history
+        // (The remaining MAX_ACTIVE_NOTIFICATIONS are still active)
+        assert_eq!(manager.history().len(), 2);
     }
 
     #[test]
@@ -761,7 +817,13 @@ mod tests {
 
         // Only critical should be displayed
         assert_eq!(manager.active_count(), 1);
-        assert_eq!(manager.active_notifications()[0].summary, "Critical");
+        assert_eq!(
+            manager
+                .get_notification_at(0)
+                .expect("notification should exist")
+                .summary,
+            "Critical"
+        );
     }
 
     #[test]

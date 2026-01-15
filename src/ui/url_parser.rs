@@ -29,8 +29,11 @@ fn url_regex() -> &'static Regex {
         Regex::new(
             r#"(?x)
             (?P<url>
-                # Explicit scheme (http, https, mailto, ftp)
-                (?:https?|mailto|ftp)://[^\s<>"']+
+                # http/https/ftp with ://
+                (?:https?|ftp)://[^\s<>"']+
+                |
+                # mailto: without // (mailto:user@domain.com)
+                mailto:[^\s<>"']+
                 |
                 # www. without scheme
                 www\.[^\s<>"']+
@@ -48,6 +51,8 @@ fn url_regex() -> &'static Regex {
 /// # Examples
 ///
 /// ```
+/// use cosmic_applet_notifications::ui::url_parser::parse_text;
+///
 /// let segments = parse_text("Check out https://example.com for more info!");
 /// // Returns: [Text("Check out "), Link{...}, Text(" for more info!")]
 /// ```
@@ -193,7 +198,7 @@ mod tests {
     fn test_parse_text_multiple_urls() {
         let segments = parse_text("Visit https://example.com or https://test.org");
 
-        assert_eq!(segments.len(), 5);
+        assert_eq!(segments.len(), 4);
         assert_eq!(segments[0], TextSegment::Text("Visit ".to_string()));
         assert!(
             matches!(&segments[1], TextSegment::Link { url, .. } if url == "https://example.com")

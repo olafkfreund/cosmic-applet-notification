@@ -14,6 +14,7 @@ use std::hash::{Hash, Hasher};
 use std::time::Duration;
 
 use chrono::Local;
+use cosmic::iced;
 use futures::stream::{Stream, StreamExt};
 use zbus::zvariant::OwnedValue;
 use zbus::{Connection, MatchRule, MessageStream, MessageType};
@@ -85,12 +86,13 @@ impl Hash for ListenerSubscription {
 /// The subscription is managed by iced's runtime - no manual cleanup needed.
 ///
 /// # Example
-/// ```no_run
-/// use iced::Subscription;
+/// ```ignore
+/// use cosmic::{Application, iced::Subscription};
+/// use cosmic_applet_notifications::dbus;
 ///
 /// impl Application for MyApp {
 ///     fn subscription(&self) -> Subscription<Message> {
-///         notification_listener::subscribe()
+///         dbus::listener::subscribe()
 ///     }
 /// }
 /// ```
@@ -100,7 +102,9 @@ where
 {
     iced::Subscription::run_with_id(
         ListenerSubscription,
-        notification_stream().map(Message::from),
+        futures::stream::once(notification_stream())
+            .flatten()
+            .map(Message::from),
     )
 }
 
@@ -189,9 +193,8 @@ async fn create_notification_stream(
     let match_rule = match MatchRule::builder()
         .msg_type(MessageType::Signal)
         .interface("org.freedesktop.Notifications")
-        .and_then(|builder| builder.build())
     {
-        Ok(rule) => rule,
+        Ok(builder) => builder.build(),
         Err(e) => {
             tracing::error!("Failed to build match rule: {} (will retry connection)", e);
             return None;
@@ -220,20 +223,32 @@ async fn create_notification_stream(
     };
 
     // Transform D-Bus messages into Notifications
+    //
+    // Note: We use filter_map with nested match instead of try_filter_map because
+    // we want to continue processing notifications even when some fail to parse.
+    // This ensures one malformed notification doesn't block the entire stream.
+    // Errors are logged but don't propagate to the caller.
     Some(
         message_stream
             .filter_map(|message| async move {
-                match parse_notification_signal(message) {
-                    Ok(notification) => {
-                        tracing::debug!(
-                            "Received notification: {} from {}",
-                            notification.summary,
-                            notification.app_name
-                        );
-                        Some(notification)
-                    }
+                // Handle Result from message stream
+                match message {
+                    Ok(msg) => match parse_notification_signal(msg) {
+                        Ok(notification) => {
+                            tracing::debug!(
+                                "Received notification: {} from {}",
+                                notification.summary,
+                                notification.app_name
+                            );
+                            Some(notification)
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to parse notification signal: {}", e);
+                            None
+                        }
+                    },
                     Err(e) => {
-                        tracing::warn!("Failed to parse notification signal: {}", e);
+                        tracing::warn!("Failed to receive D-Bus message: {}", e);
                         None
                     }
                 }
@@ -257,7 +272,8 @@ async fn create_notification_stream(
 /// Reference: https://specifications.freedesktop.org/notification-spec/latest/ar01s09.html
 fn parse_notification_signal(message: zbus::Message) -> Result<Notification, NotificationError> {
     // Verify this is a Notify signal
-    let member = message.member().ok_or(NotificationError::MissingMember)?;
+    let header = message.header();
+    let member = header.member().ok_or(NotificationError::MissingMember)?;
 
     if member.as_str() != "Notify" {
         return Err(NotificationError::UnexpectedSignal(

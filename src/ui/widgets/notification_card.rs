@@ -6,6 +6,10 @@ use cosmic::iced::Length;
 use cosmic::widget::{button, column, container, row, text};
 use cosmic::Element;
 
+// Import button constructors
+use cosmic::widget::button::link as button_link;
+use cosmic::widget::button::standard as button_standard;
+
 use crate::dbus::Notification;
 use crate::ui::url_parser::{parse_text, TextSegment};
 
@@ -13,48 +17,45 @@ use crate::ui::url_parser::{parse_text, TextSegment};
 ///
 /// Displays notification information with a dismiss button, clickable URLs, and action buttons.
 /// Uses COSMIC design patterns for consistent appearance.
+///
+/// Performance: Accepts a reference to avoid cloning notification data on every frame.
 pub fn notification_card<'a, Message>(
-    notification: &Notification,
+    notification: &'a Notification,
     on_dismiss: impl Fn(u32) -> Message + 'a,
     on_url: impl Fn(String) -> Message + 'a + Clone,
     on_action: impl Fn(u32, String) -> Message + 'a + Clone,
 ) -> Element<'a, Message>
 where
-    Message: Clone + 'a,
+    Message: Clone + 'a + 'static,
 {
     let notification_id = notification.id;
 
     // Header row: app name and timestamp
-    let header = row![
-        text(&notification.app_name)
-            .size(12)
-            .style(cosmic::theme::Text::Accent),
-        text(format_timestamp(&notification.timestamp))
-            .size(12)
-            .style(cosmic::theme::Text::Muted),
-    ]
-    .spacing(8)
-    .align_items(cosmic::iced::Alignment::Center);
+    let header = row()
+        .push(text(&notification.app_name).size(12))
+        .push(text(format_timestamp(&notification.timestamp)).size(12))
+        .spacing(8.0)
+        .align_y(cosmic::iced::Alignment::Center);
 
     // Summary text (bold)
-    let summary = text(&notification.summary)
-        .size(14)
-        .style(cosmic::theme::Text::Default);
+    let summary = text(&notification.summary).size(14);
 
     // Dismiss button
-    let dismiss_btn = button(text("✕").size(16))
+    let dismiss_btn = button::text("✕")
         .on_press(on_dismiss(notification_id))
-        .padding(4)
-        .style(cosmic::theme::Button::Text);
+        .padding(4.0);
 
     // Main content column - conditionally add body if present
-    let mut content = column![
-        row![header, dismiss_btn.width(Length::Shrink)]
-            .spacing(8)
-            .align_items(cosmic::iced::Alignment::Center)
-            .width(Length::Fill),
-        summary,
-    ];
+    let mut content = column()
+        .push(
+            row()
+                .push(header)
+                .push(dismiss_btn.width(Length::Shrink))
+                .spacing(8.0)
+                .align_y(cosmic::iced::Alignment::Center)
+                .width(Length::Fill),
+        )
+        .push(summary);
 
     // Add body text with clickable URLs if present
     if !notification.body.is_empty() {
@@ -68,13 +69,10 @@ where
         content = content.push(action_row);
     }
 
-    let content = content.spacing(4).padding(12).width(Length::Fill);
+    let content = content.spacing(4.0).padding(12.0).width(Length::Fill);
 
-    // Wrap in container with theme styling
-    container(content)
-        .style(cosmic::theme::Container::Card)
-        .width(Length::Fill)
-        .into()
+    // Wrap in container
+    container(content).width(Length::Fill).into()
 }
 
 /// Render text with clickable URL links
@@ -85,32 +83,27 @@ fn render_text_with_links<'a, Message>(
     url_message: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message>
 where
-    Message: Clone + 'a,
+    Message: Clone + 'a + 'static,
 {
     let segments = parse_text(text_content);
 
     // Create a wrapping row for text segments and links
-    let mut content_row = row![]
-        .spacing(4)
-        .align_items(cosmic::iced::Alignment::Center);
+    let mut content_row = row().spacing(4.0).align_y(cosmic::iced::Alignment::Center);
 
     for segment in segments {
         match segment {
             TextSegment::Text(txt) => {
                 // Add plain text
-                content_row =
-                    content_row.push(text(txt).size(12).style(cosmic::theme::Text::Muted));
+                content_row = content_row.push(text(txt).size(12));
             }
             TextSegment::Link {
                 text: link_text,
                 url,
             } => {
                 // Add clickable link button
-                let link_button =
-                    button(text(&link_text).size(12).style(cosmic::theme::Text::Accent))
-                        .on_press(url_message(url))
-                        .padding([0, 4])
-                        .style(cosmic::theme::Button::Link);
+                let link_button = button_link(link_text.clone())
+                    .on_press(url_message(url))
+                    .padding([0, 4]);
 
                 content_row = content_row.push(link_button);
             }
@@ -130,16 +123,16 @@ fn render_action_buttons<'a, Message>(
     on_action: impl Fn(u32, String) -> Message + 'a + Clone,
 ) -> Element<'a, Message>
 where
-    Message: Clone + 'a,
+    Message: Clone + 'a + 'static,
 {
-    let mut action_row = row![].spacing(8).padding([8, 0, 0, 0]);
+    let mut action_row = row().spacing(8.0).padding([8, 0, 0, 0]);
 
     for action in actions {
         let action_key = action.key.clone();
-        let action_button = button(text(&action.label).size(12))
+        let action_label = action.label.clone();
+        let action_button = button_standard(action_label)
             .on_press(on_action(notification_id, action_key))
-            .padding([4, 12])
-            .style(cosmic::theme::Button::Standard);
+            .padding([4, 12]);
 
         action_row = action_row.push(action_button);
     }
