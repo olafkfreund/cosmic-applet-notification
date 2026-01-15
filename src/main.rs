@@ -44,6 +44,12 @@ pub enum Message {
     /// Open a URL from a notification
     OpenUrl(String),
 
+    /// Invoke a notification action
+    InvokeAction {
+        notification_id: u32,
+        action_key: String,
+    },
+
     /// Tick for periodic updates
     Tick,
 }
@@ -191,6 +197,31 @@ impl Application for NotificationApplet {
                 }
             }
 
+            Message::InvokeAction {
+                notification_id,
+                action_key,
+            } => {
+                // Send ActionInvoked signal to D-Bus
+                let action_key_clone = action_key.clone();
+                tokio::spawn(async move {
+                    if let Err(e) =
+                        dbus::send_action_invoked(notification_id, &action_key_clone).await
+                    {
+                        tracing::error!(
+                            "Failed to send ActionInvoked for notification {}: {}",
+                            notification_id,
+                            e
+                        );
+                    }
+                });
+
+                tracing::info!(
+                    "Action '{}' invoked for notification {}",
+                    action_key,
+                    notification_id
+                );
+            }
+
             Message::Tick => {
                 // Check for expired notifications and remove them
                 let expired_ids = self.manager.get_expired_notifications();
@@ -260,11 +291,15 @@ impl Application for NotificationApplet {
             // Get active notifications from manager
             let notifications = self.manager.active_notifications();
 
-            // Create notification list view with clickable URLs
+            // Create notification list view with clickable URLs and action buttons
             let content = ui::widgets::notification_list(
                 notifications,
                 |id| Message::DismissNotification(id),
                 |url| Message::OpenUrl(url),
+                |notification_id, action_key| Message::InvokeAction {
+                    notification_id,
+                    action_key,
+                },
             );
 
             self.core.applet.popup_container(content).into()

@@ -6,6 +6,7 @@
 // Reference: https://specifications.freedesktop.org/notification-spec/latest/
 
 pub mod listener;
+pub mod sender;
 pub mod types;
 
 // Re-export commonly used types
@@ -16,3 +17,6 @@ pub use types::{
 
 // Re-export listener subscription function
 pub use listener::subscribe;
+
+// Re-export sender functions
+pub use sender::{send_action_invoked, send_notification_closed, CloseReason};

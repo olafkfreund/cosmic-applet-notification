@@ -11,12 +11,13 @@ use crate::ui::widgets::notification_card;
 
 /// Create a notification list widget
 ///
-/// Displays notifications in a scrollable column with clickable URLs.
+/// Displays notifications in a scrollable column with clickable URLs and action buttons.
 /// Shows empty state message when no notifications are present.
 pub fn notification_list<'a, Message>(
     notifications: &[Notification],
     on_dismiss: impl Fn(u32) -> Message + 'a + Clone,
     on_url: impl Fn(String) -> Message + 'a + Clone,
+    on_action: impl Fn(u32, String) -> Message + 'a + Clone,
 ) -> Element<'a, Message>
 where
     Message: Clone + 'a,
@@ -52,6 +53,7 @@ where
                 notification,
                 on_dismiss.clone(),
                 on_url.clone(),
+                on_action.clone(),
             ))
         });
 

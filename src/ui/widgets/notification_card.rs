@@ -11,12 +11,13 @@ use crate::ui::url_parser::{parse_text, TextSegment};
 
 /// Create a notification card widget
 ///
-/// Displays notification information with a dismiss button and clickable URLs.
+/// Displays notification information with a dismiss button, clickable URLs, and action buttons.
 /// Uses COSMIC design patterns for consistent appearance.
 pub fn notification_card<'a, Message>(
     notification: &Notification,
     on_dismiss: impl Fn(u32) -> Message + 'a,
     on_url: impl Fn(String) -> Message + 'a + Clone,
+    on_action: impl Fn(u32, String) -> Message + 'a + Clone,
 ) -> Element<'a, Message>
 where
     Message: Clone + 'a,
@@ -59,6 +60,12 @@ where
     if !notification.body.is_empty() {
         let body_content = render_text_with_links(&notification.body, on_url);
         content = content.push(body_content);
+    }
+
+    // Add action buttons if present
+    if !notification.actions.is_empty() {
+        let action_row = render_action_buttons(&notification.actions, notification_id, on_action);
+        content = content.push(action_row);
     }
 
     let content = content.spacing(4).padding(12).width(Length::Fill);
@@ -111,6 +118,33 @@ where
     }
 
     content_row.into()
+}
+
+/// Render action buttons for notification actions
+///
+/// Creates a row of buttons for each notification action.
+/// Action buttons are styled with the standard button theme.
+fn render_action_buttons<'a, Message>(
+    actions: &[crate::dbus::NotificationAction],
+    notification_id: u32,
+    on_action: impl Fn(u32, String) -> Message + 'a + Clone,
+) -> Element<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    let mut action_row = row![].spacing(8).padding([8, 0, 0, 0]);
+
+    for action in actions {
+        let action_key = action.key.clone();
+        let action_button = button(text(&action.label).size(12))
+            .on_press(on_action(notification_id, action_key))
+            .padding([4, 12])
+            .style(cosmic::theme::Button::Standard);
+
+        action_row = action_row.push(action_button);
+    }
+
+    action_row.into()
 }
 
 /// Format timestamp for display
