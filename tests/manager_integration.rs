@@ -146,9 +146,21 @@ fn test_manager_grouped_by_app() {
     let mut manager = NotificationManager::new();
 
     // Add notifications from different apps
-    manager.add_notification(create_notification("firefox", "Tab loaded", Urgency::Normal));
-    manager.add_notification(create_notification("firefox", "Download complete", Urgency::Normal));
-    manager.add_notification(create_notification("thunderbird", "New email", Urgency::Normal));
+    manager.add_notification(create_notification(
+        "firefox",
+        "Tab loaded",
+        Urgency::Normal,
+    ));
+    manager.add_notification(create_notification(
+        "firefox",
+        "Download complete",
+        Urgency::Normal,
+    ));
+    manager.add_notification(create_notification(
+        "thunderbird",
+        "New email",
+        Urgency::Normal,
+    ));
 
     let grouped = manager.get_notifications_by_app();
 

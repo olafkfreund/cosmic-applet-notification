@@ -223,9 +223,7 @@ fn test_config_large_app_filter_list() {
 
     // Add many app filters
     for i in 0..100 {
-        config
-            .app_filters
-            .insert(format!("app{}", i), i % 2 == 0);
+        config.app_filters.insert(format!("app{}", i), i % 2 == 0);
     }
 
     assert_eq!(config.app_filters.len(), 100);

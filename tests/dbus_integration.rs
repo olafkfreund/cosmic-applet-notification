@@ -58,7 +58,11 @@ fn test_parse_actions_valid() {
 #[test]
 fn test_parse_actions_odd_length() {
     // Odd number of elements should be handled gracefully
-    let actions = vec!["default".to_string(), "Open".to_string(), "orphan".to_string()];
+    let actions = vec![
+        "default".to_string(),
+        "Open".to_string(),
+        "orphan".to_string(),
+    ];
     let result = parse_actions(&actions);
 
     // Should only parse the complete pairs

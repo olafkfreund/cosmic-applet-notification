@@ -22,7 +22,8 @@ jobs:
             experimental-features = nix-command flakes
             accept-flake-config = true
 
-      - name: Setup Cachix
+      - name: Setup Cachix (optional)
+        continue-on-error: true
         uses: cachix/cachix-action@v14
         with:
           name: cosmic-applet-notifications

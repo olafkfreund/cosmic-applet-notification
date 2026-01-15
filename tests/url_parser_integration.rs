@@ -68,7 +68,9 @@ fn test_parse_text_www_url() {
     let text = "Check www.example.com for updates";
     let segments = parse_text(text);
 
-    let link_segment = segments.iter().find(|s| matches!(s, TextSegment::Link { .. }));
+    let link_segment = segments
+        .iter()
+        .find(|s| matches!(s, TextSegment::Link { .. }));
     assert!(link_segment.is_some());
 
     if let Some(TextSegment::Link { url, .. }) = link_segment {
@@ -82,7 +84,9 @@ fn test_parse_text_mailto_url() {
     let text = "Email us at mailto:test@example.com";
     let segments = parse_text(text);
 
-    let link_segment = segments.iter().find(|s| matches!(s, TextSegment::Link { .. }));
+    let link_segment = segments
+        .iter()
+        .find(|s| matches!(s, TextSegment::Link { .. }));
     assert!(link_segment.is_some());
 
     if let Some(TextSegment::Link { url, .. }) = link_segment {
@@ -95,7 +99,9 @@ fn test_parse_text_ftp_url() {
     let text = "Download from ftp://ftp.example.com/file.txt";
     let segments = parse_text(text);
 
-    let link_segment = segments.iter().find(|s| matches!(s, TextSegment::Link { .. }));
+    let link_segment = segments
+        .iter()
+        .find(|s| matches!(s, TextSegment::Link { .. }));
     assert!(link_segment.is_some());
 
     if let Some(TextSegment::Link { url, .. }) = link_segment {
@@ -109,7 +115,9 @@ fn test_parse_text_dangerous_javascript_url_blocked() {
     let segments = parse_text(text);
 
     // javascript: URLs should be rejected
-    let has_link = segments.iter().any(|s| matches!(s, TextSegment::Link { .. }));
+    let has_link = segments
+        .iter()
+        .any(|s| matches!(s, TextSegment::Link { .. }));
     assert!(!has_link);
 }
 
@@ -119,7 +127,9 @@ fn test_parse_text_dangerous_data_url_blocked() {
     let segments = parse_text(text);
 
     // data: URLs should be rejected
-    let has_link = segments.iter().any(|s| matches!(s, TextSegment::Link { .. }));
+    let has_link = segments
+        .iter()
+        .any(|s| matches!(s, TextSegment::Link { .. }));
     assert!(!has_link);
 }
 
@@ -129,7 +139,9 @@ fn test_parse_text_file_url_blocked() {
     let segments = parse_text(text);
 
     // file: URLs should be rejected for security
-    let has_link = segments.iter().any(|s| matches!(s, TextSegment::Link { .. }));
+    let has_link = segments
+        .iter()
+        .any(|s| matches!(s, TextSegment::Link { .. }));
     assert!(!has_link);
 }
 
@@ -138,7 +150,9 @@ fn test_parse_text_url_with_query_params() {
     let text = "Search at https://example.com/search?q=test&lang=en";
     let segments = parse_text(text);
 
-    let link_segment = segments.iter().find(|s| matches!(s, TextSegment::Link { .. }));
+    let link_segment = segments
+        .iter()
+        .find(|s| matches!(s, TextSegment::Link { .. }));
     assert!(link_segment.is_some());
 
     if let Some(TextSegment::Link { url, .. }) = link_segment {
@@ -151,7 +165,9 @@ fn test_parse_text_url_with_fragment() {
     let text = "Go to https://example.com/page#section";
     let segments = parse_text(text);
 
-    let link_segment = segments.iter().find(|s| matches!(s, TextSegment::Link { .. }));
+    let link_segment = segments
+        .iter()
+        .find(|s| matches!(s, TextSegment::Link { .. }));
     assert!(link_segment.is_some());
 
     if let Some(TextSegment::Link { url, .. }) = link_segment {
@@ -164,7 +180,9 @@ fn test_parse_text_url_with_port() {
     let text = "Server at https://example.com:8080/api";
     let segments = parse_text(text);
 
-    let link_segment = segments.iter().find(|s| matches!(s, TextSegment::Link { .. }));
+    let link_segment = segments
+        .iter()
+        .find(|s| matches!(s, TextSegment::Link { .. }));
     assert!(link_segment.is_some());
 
     if let Some(TextSegment::Link { url, .. }) = link_segment {
@@ -177,7 +195,9 @@ fn test_parse_text_url_with_path() {
     let text = "Visit https://example.com/path/to/page.html";
     let segments = parse_text(text);
 
-    let link_segment = segments.iter().find(|s| matches!(s, TextSegment::Link { .. }));
+    let link_segment = segments
+        .iter()
+        .find(|s| matches!(s, TextSegment::Link { .. }));
     assert!(link_segment.is_some());
 
     if let Some(TextSegment::Link { url, .. }) = link_segment {
@@ -202,7 +222,9 @@ fn test_parse_text_url_in_parentheses() {
     let text = "See (https://example.com) for details";
     let segments = parse_text(text);
 
-    let link_segment = segments.iter().find(|s| matches!(s, TextSegment::Link { .. }));
+    let link_segment = segments
+        .iter()
+        .find(|s| matches!(s, TextSegment::Link { .. }));
     assert!(link_segment.is_some());
 }
 
@@ -211,7 +233,9 @@ fn test_parse_text_url_with_special_chars() {
     let text = "API: https://api.example.com/v1/users?filter[name]=test";
     let segments = parse_text(text);
 
-    let link_segment = segments.iter().find(|s| matches!(s, TextSegment::Link { .. }));
+    let link_segment = segments
+        .iter()
+        .find(|s| matches!(s, TextSegment::Link { .. }));
     assert!(link_segment.is_some());
 }
 
