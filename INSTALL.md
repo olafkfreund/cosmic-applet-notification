@@ -1,8 +1,64 @@
 # Installation Guide
 
-## NixOS Installation
+**COSMIC Notification Applet** - Installation instructions for NixOS and COSMIC Desktop.
+
+**Version**: 0.1.0
+**Last Updated**: 2026-01-15
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Installation Methods](#installation-methods)
+- [Post-Installation](#post-installation)
+- [Configuration](#configuration)
+- [Development Setup](#development-setup)
+- [Updating](#updating)
+- [Uninstallation](#uninstallation)
+- [Troubleshooting](#troubleshooting)
+
+## Prerequisites
+
+### System Requirements
+
+- **Operating System**: NixOS (22.05 or later recommended)
+- **Desktop Environment**: COSMIC Desktop (Alpha 6 or later)
+- **Nix**: Flakes enabled
+- **Rust**: 1.90.0 or later (automatically provided by Nix)
+
+### Enabling Nix Flakes
+
+If you haven't enabled flakes yet, add to your NixOS configuration:
+
+```nix
+# configuration.nix
+{
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+}
+```
+
+Then rebuild:
+```bash
+sudo nixos-rebuild switch
+```
+
+### Installing COSMIC Desktop
+
+If COSMIC Desktop isn't installed yet:
+
+```nix
+# configuration.nix
+{
+  services.desktopManager.cosmic.enable = true;
+}
+```
+
+See [COSMIC Desktop documentation](https://github.com/pop-os/cosmic-epoch) for details.
+
+## Installation Methods
 
 ### Method 1: Using the Flake (Recommended)
+
+**Best for**: Regular users who want easy installation and updates.
 
 Add the applet to your NixOS configuration:
 
@@ -36,10 +92,12 @@ Then in your `configuration.nix`:
 Rebuild your system:
 
 ```bash
-sudo nixos-rebuild switch
+sudo nixos-rebuild switch --flake .#yourhostname
 ```
 
 ### Method 2: Direct Package Installation
+
+**Best for**: Users who prefer direct package management.
 
 Add directly to your system packages:
 
@@ -54,7 +112,36 @@ Add directly to your system packages:
 }
 ```
 
-### Method 3: Local Build from Source
+Rebuild:
+```bash
+sudo nixos-rebuild switch
+```
+
+### Method 3: Home Manager Installation
+
+**Best for**: User-specific installation without system-wide changes.
+
+For user-specific installation with Home Manager:
+
+```nix
+# home.nix
+{ inputs, pkgs, ... }:
+
+{
+  home.packages = [
+    inputs.cosmic-applet-notifications.packages.${pkgs.system}.default
+  ];
+}
+```
+
+Apply changes:
+```bash
+home-manager switch
+```
+
+### Method 4: Local Build from Source
+
+**Best for**: Users who want to build locally or contribute.
 
 Clone the repository and build:
 
@@ -70,19 +157,96 @@ Install to your profile:
 nix profile install .
 ```
 
-## Home Manager Installation
+Or copy to user directory:
 
-For user-specific installation with Home Manager:
+```bash
+# Create applet directory if it doesn't exist
+mkdir -p ~/.local/share/cosmic/applets
 
-```nix
-# home.nix
-{ inputs, pkgs, ... }:
+# Copy binary from build result
+cp result/bin/cosmic-applet-notifications ~/.local/share/cosmic/applets/
+```
 
-{
-  home.packages = [
-    inputs.cosmic-applet-notifications.packages.${pkgs.system}.default
-  ];
-}
+## Post-Installation
+
+### Verify Installation
+
+```bash
+# Check if binary is installed
+which cosmic-applet-notifications
+
+# Check if applet is running
+ps aux | grep cosmic-applet-notifications
+```
+
+### Restart COSMIC Panel
+
+After installation, restart the panel to load the applet:
+
+```bash
+cosmic-panel --reload
+
+# Or log out and log back in
+```
+
+### First Launch
+
+1. **Look for the bell icon** (🔔) in your COSMIC panel
+2. **Click the icon** to open the notification popup
+3. **Send a test notification**:
+   ```bash
+   notify-send "Test" "Hello from COSMIC Notification Applet!"
+   ```
+4. The notification should appear in the popup
+
+## Configuration
+
+### Configuration Location
+
+After installation, configuration is stored at:
+
+```
+~/.config/cosmic/com.cosmic.applet.notifications/config.ron
+```
+
+### Quick Configuration
+
+**Use a pre-made example**:
+```bash
+# Copy default configuration with comments
+cp examples/default-config.ron ~/.config/cosmic/com.cosmic.applet.notifications/config.ron
+
+# Or choose from specialized configs:
+# - minimal-config.ron (lightweight)
+# - power-user-config.ron (advanced features)
+# - focus-mode-config.ron (deep work)
+# - accessibility-config.ron (reduced motion)
+```
+
+**Edit configuration**:
+```bash
+nano ~/.config/cosmic/com.cosmic.applet.notifications/config.ron
+```
+
+**Apply changes**:
+```bash
+cosmic-panel --reload
+```
+
+See [USER_GUIDE.md](./USER_GUIDE.md) for detailed configuration options.
+
+### Setting as Default Notification Handler
+
+To use this applet as your primary notification handler:
+
+```bash
+# Disable default cosmic-notifications (if running)
+systemctl --user disable cosmic-notifications
+systemctl --user stop cosmic-notifications
+
+# Or for other notification daemons
+systemctl --user disable mako
+systemctl --user disable dunst
 ```
 
 ## Development Setup
@@ -93,27 +257,72 @@ For development work:
 # Enter development shell
 nix develop
 
-# Or with direnv (recommended)
+# Or with direnv (recommended for automatic environment loading)
 echo "use flake" > .envrc
 direnv allow
 ```
 
-Available commands in dev shell:
+### Available Commands in Dev Shell
+
 - `just build` - Build the project
 - `just run` - Run the applet
 - `just test` - Run tests
-- `just check` - Run all checks
+- `just check` - Run type checks and lints
 - `just fmt` - Format code
+- `just check-all` - Run all quality checks
+- `just build-release` - Build optimized release version
 
-## Configuration
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed development workflows.
 
-After installation, the applet will appear in the COSMIC panel. Configuration is stored at:
+## Updating
 
+### Flake Installation
+
+```bash
+# Update flake inputs
+nix flake update
+
+# Rebuild system
+sudo nixos-rebuild switch --flake .#yourhostname
+
+# Restart panel
+cosmic-panel --reload
 ```
-~/.config/cosmic/com.system76.CosmicAppletNotifications/v1/config.ron
+
+### Direct Package / Home Manager
+
+```bash
+# Update flake lock
+nix flake update
+
+# Rebuild
+sudo nixos-rebuild switch
+# Or for Home Manager
+home-manager switch
+
+# Restart panel
+cosmic-panel --reload
 ```
 
-Settings can be adjusted through the applet's settings panel (click the notification icon and scroll down).
+### Source Installation
+
+```bash
+cd cosmic-applet-notification
+
+# Pull latest changes
+git pull origin main
+
+# Rebuild
+nix build
+
+# Reinstall
+nix profile upgrade cosmic-applet-notifications
+# Or copy to user directory
+cp result/bin/cosmic-applet-notifications ~/.local/share/cosmic/applets/
+
+# Restart
+cosmic-panel --reload
+```
 
 ## Uninstallation
 
@@ -133,7 +342,32 @@ sudo nixos-rebuild switch
 
 ### Direct Package
 
-Remove from system packages and rebuild.
+Remove from system packages and rebuild:
+
+```nix
+# Remove from environment.systemPackages
+environment.systemPackages = [
+  # cosmic-applet-notifications  # Remove this line
+];
+```
+
+```bash
+sudo nixos-rebuild switch
+```
+
+### Home Manager
+
+Remove from home.nix and switch:
+
+```nix
+home.packages = [
+  # cosmic-applet-notifications  # Remove this line
+];
+```
+
+```bash
+home-manager switch
+```
 
 ### Nix Profile
 
@@ -141,46 +375,189 @@ Remove from system packages and rebuild.
 nix profile remove cosmic-applet-notifications
 ```
 
+### Manual Installation
+
+```bash
+# Remove binary
+rm ~/.local/share/cosmic/applets/cosmic-applet-notifications
+
+# Remove configuration (optional)
+rm -rf ~/.config/cosmic/com.cosmic.applet.notifications/
+
+# Restart panel
+cosmic-panel --reload
+```
+
 ## Troubleshooting
 
-### Applet doesn't appear in panel
+### Applet Doesn't Appear in Panel
 
-1. Log out and log back in to reload COSMIC
-2. Check logs: `journalctl --user -u cosmic-panel`
-3. Verify installation: `which cosmic-applet-notifications`
+**Check installation**:
+```bash
+which cosmic-applet-notifications
+ls ~/.local/share/cosmic/applets/
+```
 
-### D-Bus connection issues
+**Restart COSMIC session**:
+```bash
+# Log out and log back in
+# Or restart the panel
+cosmic-panel --reload
+```
 
-Ensure D-Bus is running:
+**Check logs**:
+```bash
+journalctl --user -u cosmic-panel -f
+```
 
+### D-Bus Connection Issues
+
+**Ensure D-Bus is running**:
 ```bash
 systemctl --user status dbus
 ```
 
-### Build failures
-
-If you encounter build errors with libcosmic or other git dependencies:
-
-1. Update the flake lock: `nix flake update`
-2. Check if you need to add output hashes for git dependencies in `package.nix`
-
-### Missing dependencies
-
-If you get pkg-config errors during build, ensure all system dependencies are listed in `package.nix` buildInputs.
-
-## Requirements
-
-- **OS**: NixOS (or Nix package manager on Linux)
-- **Desktop**: COSMIC Desktop Environment
-- **Nix**: Flakes support enabled
-
-To enable flakes, add to `~/.config/nix/nix.conf` or `/etc/nix/nix.conf`:
-
-```
-experimental-features = nix-command flakes
+**Monitor D-Bus notifications**:
+```bash
+dbus-monitor "interface='org.freedesktop.Notifications'"
 ```
 
-## Support
+**Send test notification**:
+```bash
+notify-send "Test" "Testing D-Bus"
+```
 
-For issues, please report at:
-https://github.com/olafkfreund/cosmic-applet-notification/issues
+### Build Failures
+
+**Update flake lock**:
+```bash
+nix flake update
+```
+
+**Check for dependency issues**:
+```bash
+nix flake check
+```
+
+**Clean build artifacts**:
+```bash
+nix develop -c cargo clean
+nix develop -c cargo build
+```
+
+**Check Rust version**:
+```bash
+nix develop -c rustc --version
+# Should be 1.90.0 or later
+```
+
+### Runtime Errors
+
+**Enable debug logging**:
+```bash
+RUST_LOG=cosmic_applet_notifications=debug cosmic-applet-notifications
+```
+
+**Enable trace logging** (verbose):
+```bash
+RUST_LOG=cosmic_applet_notifications=trace cosmic-applet-notifications
+```
+
+**Check application logs**:
+```bash
+journalctl --user -u cosmic-panel | grep cosmic-applet-notifications
+```
+
+### Configuration Issues
+
+**Reset to defaults**:
+```bash
+# Backup current config
+cp ~/.config/cosmic/com.cosmic.applet.notifications/config.ron ~/config-backup.ron
+
+# Remove config
+rm ~/.config/cosmic/com.cosmic.applet.notifications/config.ron
+
+# Restart applet (will create new default config)
+cosmic-panel --reload
+```
+
+**Use example configuration**:
+```bash
+cp examples/default-config.ron ~/.config/cosmic/com.cosmic.applet.notifications/config.ron
+cosmic-panel --reload
+```
+
+### Performance Issues
+
+**Check resource usage**:
+```bash
+top | grep cosmic-applet-notifications
+```
+
+**Disable animations**:
+```bash
+# Edit config
+nano ~/.config/cosmic/com.cosmic.applet.notifications/config.ron
+
+# Set animations.enabled = false
+# Restart panel
+cosmic-panel --reload
+```
+
+**Enable system reduced motion**:
+```bash
+gsettings set org.gnome.desktop.interface enable-animations false
+```
+
+### Still Having Issues?
+
+1. **Check documentation**:
+   - [USER_GUIDE.md](./USER_GUIDE.md) - Feature documentation
+   - [DEVELOPMENT.md](./DEVELOPMENT.md) - Development guide
+   - [ARCHITECTURE.md](./ARCHITECTURE.md) - Technical details
+
+2. **Search existing issues**:
+   - [GitHub Issues](https://github.com/olafkfreund/cosmic-applet-notification/issues)
+
+3. **Report a bug**:
+   - Include logs: `RUST_LOG=trace cosmic-applet-notifications`
+   - Include system info: NixOS version, COSMIC version
+   - Steps to reproduce the problem
+
+4. **Community support**:
+   - Matrix: #cosmic:nixos.org
+   - GitHub Discussions
+
+## System Requirements Summary
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| NixOS | 22.05 | 23.11+ |
+| COSMIC | Alpha 6 | Alpha 7+ |
+| Rust | 1.90.0 | Latest stable |
+| RAM | 50MB | 100MB |
+| Disk | 20MB | 50MB |
+
+## Next Steps
+
+After installation:
+
+1. **Read the user guide**: [USER_GUIDE.md](./USER_GUIDE.md)
+2. **Try keyboard shortcuts**: See keyboard navigation section
+3. **Customize configuration**: Copy examples from `examples/`
+4. **Test features**: Send notifications with `notify-send`
+5. **Report issues**: Help improve the applet!
+
+---
+
+**Thank you for installing COSMIC Notification Applet!** 🎉
+
+For questions or feedback:
+- 💬 GitHub Discussions
+- 🐛 GitHub Issues: https://github.com/olafkfreund/cosmic-applet-notification/issues
+- 📖 [User Guide](./USER_GUIDE.md)
+
+---
+
+Built with ❤️ for COSMIC Desktop on NixOS
