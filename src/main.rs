@@ -21,6 +21,26 @@ pub struct NotificationApplet {
 
     /// Current popup window ID
     popup_id: Option<cosmic::iced::window::Id>,
+
+    /// Index of currently selected notification for keyboard navigation
+    /// None means no selection, Some(index) is the position in the active notifications list
+    selected_notification_index: Option<usize>,
+
+    /// Index of currently selected action within the selected notification
+    /// Used for Tab key cycling through action buttons
+    selected_action_index: Option<usize>,
+
+    /// Animation states for notifications (notification_id -> animation)
+    notification_animations: std::collections::HashMap<u32, ui::animation::NotificationAnimation>,
+
+    /// Popup animation state
+    popup_animation: Option<ui::animation::PopupAnimation>,
+
+    /// Progress indicators for timed notifications
+    progress_indicators: std::collections::HashMap<u32, ui::animation::ProgressIndicator>,
+
+    /// Whether reduced motion is preferred (accessibility)
+    prefers_reduced_motion: bool,
 }
 
 /// Messages that drive the application
@@ -80,6 +100,41 @@ pub enum Message {
     /// Preview the current popup position
     PreviewPosition,
 
+    // Keyboard Navigation Messages
+    /// Navigate to previous notification (Up arrow)
+    NavigateUp,
+
+    /// Navigate to next notification (Down arrow)
+    NavigateDown,
+
+    /// Activate selected notification (Enter key)
+    ActivateSelected,
+
+    /// Dismiss selected notification (Delete key)
+    DismissSelected,
+
+    /// Clear notification selection
+    ClearSelection,
+
+    /// Cycle through action buttons in selected notification (Tab key)
+    CycleActions,
+
+    /// Invoke action by number key (1-9)
+    InvokeQuickAction(u8),
+
+    // Animation Messages
+    /// Animation frame update (16ms ~ 60fps)
+    AnimationFrame,
+
+    /// Start appearing animation for notification
+    StartAppearAnimation(u32),
+
+    /// Start dismissing animation for notification
+    StartDismissAnimation(u32),
+
+    /// Complete notification dismissal after animation
+    CompleteNotificationDismissal(u32),
+
     /// Tick for periodic updates
     Tick,
 
@@ -91,6 +146,62 @@ pub enum Message {
 impl From<dbus::Notification> for Message {
     fn from(notification: dbus::Notification) -> Self {
         Message::NotificationReceived(notification)
+    }
+}
+
+// Helper methods for NotificationApplet
+impl NotificationApplet {
+    /// Clear both notification and action selection
+    fn clear_selection(&mut self) {
+        self.selected_notification_index = None;
+        self.selected_action_index = None;
+    }
+
+    /// Clear only action selection (when changing notifications)
+    fn clear_action_selection(&mut self) {
+        self.selected_action_index = None;
+    }
+
+    /// Clear selection if notification list is empty
+    /// Returns true if list was empty
+    fn clear_selection_if_no_notifications(&mut self) -> bool {
+        if self.manager.get_active_notifications().is_empty() {
+            self.clear_selection();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Validate and fix selection indices after notifications change
+    /// Call this after removing notifications to keep selection in bounds
+    fn validate_selection(&mut self) {
+        let notification_count = self.manager.get_active_notifications().len();
+
+        if notification_count == 0 {
+            self.clear_selection();
+            return;
+        }
+
+        // Fix out-of-bounds notification selection
+        if let Some(idx) = self.selected_notification_index {
+            if idx >= notification_count {
+                self.selected_notification_index = Some(notification_count - 1);
+                self.clear_action_selection();
+            }
+        }
+
+        // Fix out-of-bounds action selection
+        if let Some(notif_idx) = self.selected_notification_index {
+            if let Some(action_idx) = self.selected_action_index {
+                let active_notifications = self.manager.get_active_notifications();
+                if let Some(notification) = active_notifications.get(notif_idx) {
+                    if action_idx >= notification.actions.len() {
+                        self.clear_action_selection();
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -139,6 +250,12 @@ impl Application for NotificationApplet {
             config_helper,
             config,
             popup_id: None,
+            selected_notification_index: None,
+            selected_action_index: None,
+            notification_animations: std::collections::HashMap::new(),
+            popup_animation: None,
+            progress_indicators: std::collections::HashMap::new(),
+            prefers_reduced_motion: false, // TODO: Detect from system settings
         };
 
         (app, Task::none())
@@ -197,6 +314,8 @@ impl Application for NotificationApplet {
 
             Message::ClosePopup => {
                 if let Some(id) = self.popup_id.take() {
+                    // Clear selection when closing popup
+                    self.clear_selection();
                     return cosmic::iced::platform_specific::shell::commands::popup::destroy_popup(
                         id,
                     );
@@ -428,6 +547,170 @@ impl Application for NotificationApplet {
                 }
             }
 
+            Message::NavigateUp => {
+                // Move selection up in notification list
+                if self.clear_selection_if_no_notifications() {
+                    return Task::none();
+                }
+
+                let active_notifications = self.manager.get_active_notifications();
+                self.selected_notification_index = Some(match self.selected_notification_index {
+                    None => active_notifications.len() - 1, // Start from bottom
+                    Some(0) => active_notifications.len() - 1, // Wrap to bottom
+                    Some(idx) => idx - 1,                   // Move up
+                });
+
+                // Clear action selection when changing notifications
+                self.clear_action_selection();
+
+                tracing::debug!(
+                    "Navigate up: selected index = {:?}",
+                    self.selected_notification_index
+                );
+            }
+
+            Message::NavigateDown => {
+                // Move selection down in notification list
+                if self.clear_selection_if_no_notifications() {
+                    return Task::none();
+                }
+
+                let active_notifications = self.manager.get_active_notifications();
+                self.selected_notification_index = Some(match self.selected_notification_index {
+                    None => 0,                                               // Start from top
+                    Some(idx) if idx + 1 >= active_notifications.len() => 0, // Wrap to top
+                    Some(idx) => idx + 1,                                    // Move down
+                });
+
+                // Clear action selection when changing notifications
+                self.clear_action_selection();
+
+                tracing::debug!(
+                    "Navigate down: selected index = {:?}",
+                    self.selected_notification_index
+                );
+            }
+
+            Message::ActivateSelected => {
+                // Activate the selected notification (open URL or invoke first action)
+                if let Some(idx) = self.selected_notification_index {
+                    let active_notifications = self.manager.get_active_notifications();
+                    if let Some(notification) = active_notifications.get(idx) {
+                        // First try to open a URL if present in body
+                        if let Some(url) = ui::url_parser::extract_first_url(&notification.body) {
+                            tracing::info!(
+                                "Activating selected notification {}: opening URL {}",
+                                notification.id,
+                                url
+                            );
+                            return self.update(Message::OpenUrl(url));
+                        }
+
+                        // If no URL, try to invoke first action
+                        if !notification.actions.is_empty() {
+                            let action_key = notification.actions[0].key.clone();
+                            tracing::info!(
+                                "Activating selected notification {}: invoking action {}",
+                                notification.id,
+                                action_key
+                            );
+                            return self.update(Message::InvokeAction {
+                                notification_id: notification.id,
+                                action_key,
+                            });
+                        }
+
+                        tracing::debug!(
+                            "Selected notification {} has no URL or actions to activate",
+                            notification.id
+                        );
+                    }
+                }
+            }
+
+            Message::DismissSelected => {
+                // Dismiss the selected notification
+                if let Some(idx) = self.selected_notification_index {
+                    let active_notifications = self.manager.get_active_notifications();
+                    if let Some(notification) = active_notifications.get(idx) {
+                        let notification_id = notification.id;
+                        tracing::info!("Dismissing selected notification {}", notification_id);
+
+                        // Clear selection before dismissing
+                        self.clear_selection();
+
+                        return self.update(Message::DismissNotification(notification_id));
+                    }
+                }
+            }
+
+            Message::ClearSelection => {
+                // Clear notification selection
+                tracing::debug!("Clearing notification selection");
+                self.clear_selection();
+            }
+
+            Message::CycleActions => {
+                // Cycle through action buttons in selected notification
+                if let Some(notif_idx) = self.selected_notification_index {
+                    let active_notifications = self.manager.get_active_notifications();
+                    if let Some(notification) = active_notifications.get(notif_idx) {
+                        let action_count = notification.actions.len();
+
+                        if action_count == 0 {
+                            // No actions to cycle
+                            self.selected_action_index = None;
+                            return Task::none();
+                        }
+
+                        // Cycle to next action
+                        self.selected_action_index = Some(match self.selected_action_index {
+                            None => 0,                                 // Start from first action
+                            Some(idx) if idx + 1 >= action_count => 0, // Wrap to first
+                            Some(idx) => idx + 1,                      // Move to next
+                        });
+
+                        tracing::debug!(
+                            "Cycle actions: selected action index = {:?} (of {})",
+                            self.selected_action_index,
+                            action_count
+                        );
+                    }
+                }
+            }
+
+            Message::InvokeQuickAction(action_number) => {
+                // Invoke action by number key (1-9)
+                if let Some(notif_idx) = self.selected_notification_index {
+                    let active_notifications = self.manager.get_active_notifications();
+                    if let Some(notification) = active_notifications.get(notif_idx) {
+                        // Convert 1-based action number to 0-based index
+                        let action_idx = (action_number - 1) as usize;
+
+                        if action_idx < notification.actions.len() {
+                            let action_key = notification.actions[action_idx].key.clone();
+                            tracing::info!(
+                                "Quick action {}: invoking action {} for notification {}",
+                                action_number,
+                                action_key,
+                                notification.id
+                            );
+                            return self.update(Message::InvokeAction {
+                                notification_id: notification.id,
+                                action_key,
+                            });
+                        } else {
+                            tracing::debug!(
+                                "Quick action {}: no action at index {} for notification {}",
+                                action_number,
+                                action_idx,
+                                notification.id
+                            );
+                        }
+                    }
+                }
+            }
+
             Message::KeyboardEvent(event) => {
                 use cosmic::iced::keyboard::{Event as KeyEvent, Key};
 
@@ -457,6 +740,53 @@ impl Application for NotificationApplet {
                                 return self.update(Message::SetUrgencyLevel(2));
                             }
 
+                            // Arrow keys for navigation
+                            Key::Named(cosmic::iced::keyboard::key::Named::ArrowUp) => {
+                                if self.popup_id.is_some() {
+                                    return self.update(Message::NavigateUp);
+                                }
+                            }
+                            Key::Named(cosmic::iced::keyboard::key::Named::ArrowDown) => {
+                                if self.popup_id.is_some() {
+                                    return self.update(Message::NavigateDown);
+                                }
+                            }
+
+                            // Enter key activates selected notification
+                            Key::Named(cosmic::iced::keyboard::key::Named::Enter) => {
+                                if self.popup_id.is_some() {
+                                    return self.update(Message::ActivateSelected);
+                                }
+                            }
+
+                            // Delete key dismisses selected notification
+                            Key::Named(cosmic::iced::keyboard::key::Named::Delete) => {
+                                if self.popup_id.is_some() {
+                                    return self.update(Message::DismissSelected);
+                                }
+                            }
+
+                            // Tab key cycles through actions
+                            Key::Named(cosmic::iced::keyboard::key::Named::Tab) => {
+                                if self.popup_id.is_some() && !modifiers.shift() {
+                                    return self.update(Message::CycleActions);
+                                }
+                            }
+
+                            // Number keys (1-9) for quick action invocation
+                            Key::Character(c) if !modifiers.control() && !modifiers.alt() => {
+                                if self.popup_id.is_some() {
+                                    if let Some(digit) =
+                                        c.chars().next().and_then(|ch| ch.to_digit(10))
+                                    {
+                                        if digit >= 1 && digit <= 9 {
+                                            return self
+                                                .update(Message::InvokeQuickAction(digit as u8));
+                                        }
+                                    }
+                                }
+                            }
+
                             _ => {}
                         }
                     }
@@ -472,6 +802,9 @@ impl Application for NotificationApplet {
                     self.manager.remove_notification(id);
                     tracing::debug!("Removed expired notification {}", id);
                 }
+
+                // Validate selection after removing notifications
+                self.validate_selection();
 
                 // Cleanup old notifications from history based on config
                 if self.config.history_enabled {
@@ -517,6 +850,8 @@ impl Application for NotificationApplet {
             // Create notification list view with clickable URLs and action buttons
             let notification_list = ui::widgets::notification_list(
                 notifications,
+                self.selected_notification_index,
+                self.selected_action_index,
                 |id| Message::DismissNotification(id),
                 |url| Message::OpenUrl(url),
                 |notification_id, action_key| Message::InvokeAction {
@@ -576,12 +911,12 @@ impl Application for NotificationApplet {
             // Periodic tick every 60 seconds to check for expired notifications
             time::every(Duration::from_secs(60)).map(|_| Message::Tick),
             // Keyboard events for shortcuts
-            cosmic::iced::event::listen().map(|event| {
+            cosmic::iced::event::listen().filter_map(|event| {
                 if let cosmic::iced::Event::Keyboard(keyboard_event) = event {
-                    Message::KeyboardEvent(keyboard_event)
+                    Some(Message::KeyboardEvent(keyboard_event))
                 } else {
                     // Ignore non-keyboard events
-                    Message::Tick // Use Tick as a no-op
+                    None
                 }
             }),
         ])

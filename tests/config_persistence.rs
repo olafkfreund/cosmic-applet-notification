@@ -427,8 +427,14 @@ fn test_popup_position_clone() {
 
     assert_eq!(config.popup_position.mode, cloned.popup_position.mode);
     assert_eq!(config.popup_position.anchor, cloned.popup_position.anchor);
-    assert_eq!(config.popup_position.offset_x, cloned.popup_position.offset_x);
-    assert_eq!(config.popup_position.offset_y, cloned.popup_position.offset_y);
+    assert_eq!(
+        config.popup_position.offset_x,
+        cloned.popup_position.offset_x
+    );
+    assert_eq!(
+        config.popup_position.offset_y,
+        cloned.popup_position.offset_y
+    );
     assert_eq!(
         config.popup_position.snap_to_edge,
         cloned.popup_position.snap_to_edge

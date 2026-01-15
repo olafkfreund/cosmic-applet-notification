@@ -19,6 +19,8 @@ use crate::ui::widgets::notification_card;
 /// Performance: Accepts a reference to avoid copying notification data on every frame.
 pub fn notification_list<'a, Message>(
     notifications: &'a VecDeque<Notification>,
+    selected_index: Option<usize>,
+    selected_action_index: Option<usize>,
     on_dismiss: impl Fn(u32) -> Message + 'a + Clone,
     on_url: impl Fn(String) -> Message + 'a + Clone,
     on_action: impl Fn(u32, String) -> Message + 'a + Clone,
@@ -45,17 +47,26 @@ where
 
     // Build list of notification cards using functional approach
     // More efficient than repeated push() calls
-    let cards =
-        notifications
-            .iter()
-            .fold(column().spacing(8.0).padding(8.0), |col, notification| {
-                col.push(notification_card::notification_card(
-                    notification,
-                    on_dismiss.clone(),
-                    on_url.clone(),
-                    on_action.clone(),
-                ))
-            });
+    let cards = notifications.iter().enumerate().fold(
+        column().spacing(8.0).padding(8.0),
+        |col, (index, notification)| {
+            let is_selected = selected_index == Some(index);
+            // Only pass action index if this notification is selected
+            let action_index = if is_selected {
+                selected_action_index
+            } else {
+                None
+            };
+            col.push(notification_card::notification_card(
+                notification,
+                is_selected,
+                action_index,
+                on_dismiss.clone(),
+                on_url.clone(),
+                on_action.clone(),
+            ))
+        },
+    );
 
     // Wrap in scrollable container
     scrollable(cards)

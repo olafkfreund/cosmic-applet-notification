@@ -90,6 +90,58 @@ impl Default for PopupPosition {
     }
 }
 
+/// Animation configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AnimationConfig {
+    /// Enable animations globally
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+
+    /// Enable notification appearance animations
+    #[serde(default = "default_true")]
+    pub notification_appear: bool,
+
+    /// Enable notification dismissal animations
+    #[serde(default = "default_true")]
+    pub notification_dismiss: bool,
+
+    /// Enable popup open/close animations
+    #[serde(default = "default_true")]
+    pub popup_transitions: bool,
+
+    /// Enable hover effects on notification cards
+    #[serde(default = "default_true")]
+    pub hover_effects: bool,
+
+    /// Show progress indicators for timed notifications
+    #[serde(default = "default_true")]
+    pub show_progress: bool,
+
+    /// Animation duration multiplier (0.5 = half speed, 2.0 = double speed)
+    /// Range: 0.1 to 3.0
+    #[serde(default = "default_animation_speed")]
+    pub speed_multiplier: f32,
+
+    /// Respect system accessibility settings (prefers-reduced-motion)
+    #[serde(default = "default_true")]
+    pub respect_accessibility: bool,
+}
+
+impl Default for AnimationConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            notification_appear: true,
+            notification_dismiss: true,
+            popup_transitions: true,
+            hover_effects: true,
+            show_progress: true,
+            speed_multiplier: 1.0,
+            respect_accessibility: true,
+        }
+    }
+}
+
 /// Applet configuration
 ///
 /// All settings are persisted using cosmic-config.
@@ -164,6 +216,11 @@ pub struct AppletConfig {
     /// Minimum urgency level to display (0=Low, 1=Normal, 2=Critical)
     #[serde(default = "default_urgency_level")]
     pub min_urgency_level: u8,
+
+    // Animation Settings
+    /// Animation configuration
+    #[serde(default)]
+    pub animations: AnimationConfig,
 }
 
 impl Default for AppletConfig {
@@ -185,6 +242,7 @@ impl Default for AppletConfig {
             history_retention_days: None,
             app_filters: HashMap::new(),
             min_urgency_level: 0, // Show all (Low, Normal, Critical)
+            animations: AnimationConfig::default(),
         }
     }
 }
@@ -304,6 +362,15 @@ impl AppletConfig {
             return false;
         }
 
+        // Validate animation speed multiplier (0.1-3.0)
+        if !(0.1..=3.0).contains(&self.animations.speed_multiplier) {
+            tracing::warn!(
+                "Invalid animation speed_multiplier: {}, must be 0.1-3.0",
+                self.animations.speed_multiplier
+            );
+            return false;
+        }
+
         true
     }
 
@@ -360,6 +427,9 @@ impl AppletConfig {
         self.popup_position.offset_x = self.popup_position.offset_x.clamp(-3000, 3000);
         self.popup_position.offset_y = self.popup_position.offset_y.clamp(-3000, 3000);
         self.popup_position.snap_threshold = self.popup_position.snap_threshold.clamp(5, 100);
+
+        // Sanitize animation speed
+        self.animations.speed_multiplier = self.animations.speed_multiplier.clamp(0.1, 3.0);
     }
 
     /// Migrate configuration from older version
@@ -411,6 +481,10 @@ fn default_urgency_level() -> u8 {
 
 fn default_snap_threshold() -> u32 {
     20 // pixels
+}
+
+fn default_animation_speed() -> f32 {
+    1.0 // Normal speed (1x)
 }
 
 #[cfg(test)]

@@ -82,10 +82,20 @@ See [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed development workflows.
 ### User Interface
 - **COSMIC Integration**: Native panel applet with COSMIC design language
 - **Popup Window**: Expandable notification list with smooth interactions
-- **Keyboard Shortcuts**: Full keyboard navigation support
-  - `Escape`: Close popup
-  - `Ctrl+D`: Toggle Do Not Disturb
-  - `Ctrl+1/2/3`: Set urgency filter level (All/Normal+/Critical only)
+- **Keyboard Navigation**: Full keyboard control for accessibility and power users
+  - **Navigation**:
+    - `↑ Up Arrow`: Navigate to previous notification (wraps to bottom)
+    - `↓ Down Arrow`: Navigate to next notification (wraps to top)
+    - Selected notification highlighted with accent border
+  - **Actions**:
+    - `Enter`: Activate selected notification (opens URL or invokes first action)
+    - `Delete`: Dismiss selected notification
+    - `Tab`: Cycle through action buttons (for notifications with multiple actions)
+    - `1-9`: Quick invoke action by number (1 = first action, 2 = second, etc.)
+  - **Global Shortcuts**:
+    - `Escape`: Close popup
+    - `Ctrl+D`: Toggle Do Not Disturb
+    - `Ctrl+1/2/3`: Set urgency filter level (All/Normal+/Critical only)
 - **Visual Feedback**: Clear status indicators and responsive design
 
 ### Configuration

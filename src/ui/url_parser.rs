@@ -124,6 +124,29 @@ fn validate_url(url: &str) -> Option<String> {
     Some(url.to_string())
 }
 
+/// Extract the first URL from text
+///
+/// Returns the first URL found in the text, or None if no URL is present.
+/// This is optimized to stop at the first match without parsing the entire text.
+///
+/// # Examples
+///
+/// ```
+/// use cosmic_applet_notifications::ui::url_parser::extract_first_url;
+///
+/// let url = extract_first_url("Check out https://example.com!");
+/// assert_eq!(url, Some("https://example.com".to_string()));
+/// ```
+pub fn extract_first_url(text: &str) -> Option<String> {
+    let regex = url_regex();
+
+    regex
+        .captures(text)
+        .and_then(|cap| cap.name("url"))
+        .map(|m| m.as_str())
+        .and_then(validate_url)
+}
+
 /// Open a URL using the system's default handler
 ///
 /// Uses xdg-open on Linux to open URLs in the default browser/application.

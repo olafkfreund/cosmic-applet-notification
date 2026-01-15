@@ -21,6 +21,8 @@ use crate::ui::url_parser::{parse_text, TextSegment};
 /// Performance: Accepts a reference to avoid cloning notification data on every frame.
 pub fn notification_card<'a, Message>(
     notification: &'a Notification,
+    is_selected: bool,
+    selected_action_index: Option<usize>,
     on_dismiss: impl Fn(u32) -> Message + 'a,
     on_url: impl Fn(String) -> Message + 'a + Clone,
     on_action: impl Fn(u32, String) -> Message + 'a + Clone,
@@ -65,14 +67,56 @@ where
 
     // Add action buttons if present
     if !notification.actions.is_empty() {
-        let action_row = render_action_buttons(&notification.actions, notification_id, on_action);
+        // Validate action index is within bounds
+        let selected_action = if is_selected {
+            selected_action_index.filter(|&idx| idx < notification.actions.len())
+        } else {
+            None
+        };
+        let action_row = render_action_buttons(
+            &notification.actions,
+            notification_id,
+            selected_action,
+            on_action,
+        );
         content = content.push(action_row);
     }
 
     let content = content.spacing(4.0).padding(12.0).width(Length::Fill);
 
-    // Wrap in container
-    container(content).width(Length::Fill).into()
+    // Wrap in container with selection styling
+    let container = container(content).width(Length::Fill);
+
+    if is_selected {
+        container.style(selected_notification_style).into()
+    } else {
+        container.into()
+    }
+}
+
+/// Create a container style for selected notifications
+///
+/// Applies accent-colored border (2px) and subtle background tint (15% opacity)
+/// to visually indicate the currently selected notification for keyboard navigation.
+fn selected_notification_style(theme: &cosmic::Theme) -> cosmic::iced::widget::container::Style {
+    let cosmic = theme.cosmic();
+    let accent = cosmic.accent_color();
+
+    cosmic::iced::widget::container::Style {
+        text_color: None,
+        // Subtle background tint with alpha
+        background: Some(
+            cosmic::iced::Color::from_rgba(accent.red, accent.green, accent.blue, 0.15).into(),
+        ),
+        // Accent border to show selection
+        border: cosmic::iced::Border {
+            color: cosmic.accent.base.into(),
+            width: 2.0,
+            radius: 8.0.into(),
+        },
+        shadow: cosmic::iced::Shadow::default(),
+        icon_color: None,
+    }
 }
 
 /// Render text with clickable URL links
@@ -117,9 +161,11 @@ where
 ///
 /// Creates a row of buttons for each notification action.
 /// Action buttons are styled with the standard button theme.
+/// The selected action (if any) is highlighted with accent styling.
 fn render_action_buttons<'a, Message>(
     actions: &[crate::dbus::NotificationAction],
     notification_id: u32,
+    selected_action_index: Option<usize>,
     on_action: impl Fn(u32, String) -> Message + 'a + Clone,
 ) -> Element<'a, Message>
 where
@@ -127,12 +173,19 @@ where
 {
     let mut action_row = row().spacing(8.0).padding([8, 0, 0, 0]);
 
-    for action in actions {
+    for (index, action) in actions.iter().enumerate() {
         let action_key = action.key.clone();
         let action_label = action.label.clone();
-        let action_button = button_standard(action_label)
+        let is_selected = selected_action_index == Some(index);
+
+        let mut action_button = button_standard(action_label)
             .on_press(on_action(notification_id, action_key))
             .padding([4, 12]);
+
+        // Apply accent styling to selected action
+        if is_selected {
+            action_button = action_button.style(cosmic::theme::Button::Suggested);
+        }
 
         action_row = action_row.push(action_button);
     }
