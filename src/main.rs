@@ -50,6 +50,15 @@ pub enum Message {
         action_key: String,
     },
 
+    /// Toggle Do Not Disturb mode
+    ToggleDND,
+
+    /// Set minimum urgency level (0=Low, 1=Normal, 2=Critical)
+    SetUrgencyLevel(u8),
+
+    /// Toggle app filter (app_name, enabled)
+    ToggleAppFilter(String, bool),
+
     /// Tick for periodic updates
     Tick,
 }
@@ -97,6 +106,8 @@ impl Application for NotificationApplet {
             manager::NotificationManager::new()
         };
         manager.set_do_not_disturb(config.do_not_disturb);
+        manager.set_min_urgency_level(config.min_urgency_level);
+        manager.load_app_filters(config.app_filters.clone());
 
         let app = NotificationApplet {
             core,
@@ -177,6 +188,8 @@ impl Application for NotificationApplet {
 
                 // Apply config to manager
                 self.manager.set_do_not_disturb(config.do_not_disturb);
+                self.manager.set_min_urgency_level(config.min_urgency_level);
+                self.manager.load_app_filters(config.app_filters.clone());
 
                 // Save config
                 if let Err(e) = self.config_helper.save(&config) {
@@ -220,6 +233,60 @@ impl Application for NotificationApplet {
                     action_key,
                     notification_id
                 );
+            }
+
+            Message::ToggleDND => {
+                // Toggle Do Not Disturb mode
+                self.config.do_not_disturb = !self.config.do_not_disturb;
+                self.manager.set_do_not_disturb(self.config.do_not_disturb);
+
+                // Save config
+                if let Err(e) = self.config_helper.save(&self.config) {
+                    tracing::error!("Failed to save config: {}", e);
+                } else {
+                    tracing::info!(
+                        "Do Not Disturb {}",
+                        if self.config.do_not_disturb {
+                            "enabled"
+                        } else {
+                            "disabled"
+                        }
+                    );
+                }
+            }
+
+            Message::SetUrgencyLevel(level) => {
+                // Set minimum urgency level
+                self.config.min_urgency_level = level.min(2); // Clamp to 0-2
+                self.manager
+                    .set_min_urgency_level(self.config.min_urgency_level);
+
+                // Save config
+                if let Err(e) = self.config_helper.save(&self.config) {
+                    tracing::error!("Failed to save config: {}", e);
+                } else {
+                    tracing::info!(
+                        "Minimum urgency level set to {}",
+                        self.config.min_urgency_level
+                    );
+                }
+            }
+
+            Message::ToggleAppFilter(app_name, enabled) => {
+                // Update app filter (enabled = show, !enabled = block)
+                self.config.app_filters.insert(app_name.clone(), !enabled);
+                self.manager.set_app_filter(app_name.clone(), enabled);
+
+                // Save config
+                if let Err(e) = self.config_helper.save(&self.config) {
+                    tracing::error!("Failed to save config: {}", e);
+                } else {
+                    tracing::info!(
+                        "App filter for '{}' set to {}",
+                        app_name,
+                        if enabled { "allowed" } else { "blocked" }
+                    );
+                }
             }
 
             Message::Tick => {
@@ -285,14 +352,14 @@ impl Application for NotificationApplet {
     }
 
     fn view_window(&self, id: cosmic::iced::window::Id) -> Element<Self::Message> {
-        use cosmic::widget::text;
+        use cosmic::widget::{column, divider, text};
 
         if Some(id) == self.popup_id {
             // Get active notifications from manager
             let notifications = self.manager.active_notifications();
 
             // Create notification list view with clickable URLs and action buttons
-            let content = ui::widgets::notification_list(
+            let notification_list = ui::widgets::notification_list(
                 notifications,
                 |id| Message::DismissNotification(id),
                 |url| Message::OpenUrl(url),
@@ -301,6 +368,22 @@ impl Application for NotificationApplet {
                     action_key,
                 },
             );
+
+            // Create filter settings view
+            let filter_settings = ui::widgets::filter_settings(
+                &self.config,
+                Message::ToggleDND,
+                |level| Message::SetUrgencyLevel(level),
+                |app_name, enabled| Message::ToggleAppFilter(app_name, enabled),
+            );
+
+            // Combine notification list and settings
+            let content = column![
+                notification_list,
+                divider::horizontal::default(),
+                filter_settings
+            ]
+            .spacing(0);
 
             self.core.applet.popup_container(content).into()
         } else {

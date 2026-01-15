@@ -52,6 +52,9 @@ pub struct NotificationManager {
 
     /// Application filters (app_name -> should_show)
     app_filters: HashMap<String, bool>,
+
+    /// Minimum urgency level to display (0=Low, 1=Normal, 2=Critical)
+    min_urgency_level: u8,
 }
 
 impl Default for NotificationManager {
@@ -69,6 +72,7 @@ impl NotificationManager {
             next_id: 1,
             do_not_disturb: false,
             app_filters: HashMap::new(),
+            min_urgency_level: 0, // Show all notifications by default
         }
     }
 
@@ -97,6 +101,7 @@ impl NotificationManager {
             next_id: 1,
             do_not_disturb: false,
             app_filters: HashMap::new(),
+            min_urgency_level: 0, // Show all notifications by default
         }
     }
 
@@ -266,15 +271,53 @@ impl NotificationManager {
         &self.app_filters
     }
 
+    /// Set minimum urgency level filter
+    ///
+    /// Only notifications with urgency >= min_urgency_level will be displayed.
+    /// 0 = Low (show all), 1 = Normal and above, 2 = Critical only
+    pub fn set_min_urgency_level(&mut self, level: u8) {
+        self.min_urgency_level = level.min(2); // Clamp to 0-2
+    }
+
+    /// Get minimum urgency level
+    pub fn min_urgency_level(&self) -> u8 {
+        self.min_urgency_level
+    }
+
+    /// Load app filters from HashMap
+    ///
+    /// Replaces existing filters with the provided map.
+    /// Use this to sync filters from config.
+    pub fn load_app_filters(&mut self, filters: HashMap<String, bool>) {
+        self.app_filters = filters;
+    }
+
     /// Check if a notification should be displayed
     ///
     /// Applies filtering logic:
-    /// - Critical urgency always shows (even in DND)
-    /// - DND mode hides low/normal urgency
-    /// - App-specific filters
+    /// 1. Check minimum urgency level (critical always passes)
+    /// 2. Check Do Not Disturb mode (critical bypasses)
+    /// 3. Check app-specific filters
     fn should_display(&self, notification: &Notification) -> bool {
-        // Critical notifications always show
-        if notification.urgency() == Urgency::Critical {
+        let urgency = notification.urgency();
+        let urgency_value = match urgency {
+            Urgency::Low => 0,
+            Urgency::Normal => 1,
+            Urgency::Critical => 2,
+        };
+
+        // Check minimum urgency level
+        // Critical notifications bypass DND but not urgency filter
+        if urgency_value < self.min_urgency_level {
+            return false;
+        }
+
+        // Critical notifications bypass DND mode
+        if urgency == Urgency::Critical {
+            // Still check app-specific filter for critical
+            if let Some(&should_show) = self.app_filters.get(&notification.app_name) {
+                return should_show;
+            }
             return true;
         }
 
@@ -669,5 +712,121 @@ mod tests {
 
         // All notifications should be in history (including evicted ones)
         assert_eq!(manager.history().len(), MAX_ACTIVE_NOTIFICATIONS + 2);
+    }
+
+    #[test]
+    fn test_min_urgency_level_low() {
+        let mut manager = NotificationManager::new();
+        manager.set_min_urgency_level(1); // Block low urgency
+
+        let mut notification = create_test_notification("test", "Low Urgency");
+        notification.hints.urgency = Urgency::Low;
+
+        let action = manager.add_notification(notification);
+
+        // Low urgency should be filtered out
+        assert_eq!(action, NotificationAction::AddedToHistoryOnly);
+        assert_eq!(manager.active_count(), 0);
+        assert_eq!(manager.history().len(), 1);
+    }
+
+    #[test]
+    fn test_min_urgency_level_normal() {
+        let mut manager = NotificationManager::new();
+        manager.set_min_urgency_level(1); // Normal and above
+
+        let mut notification = create_test_notification("test", "Normal Urgency");
+        notification.hints.urgency = Urgency::Normal;
+
+        let action = manager.add_notification(notification);
+
+        // Normal urgency should pass
+        assert_eq!(action, NotificationAction::Displayed);
+        assert_eq!(manager.active_count(), 1);
+    }
+
+    #[test]
+    fn test_min_urgency_level_critical_only() {
+        let mut manager = NotificationManager::new();
+        manager.set_min_urgency_level(2); // Critical only
+
+        let mut notif_normal = create_test_notification("test", "Normal");
+        notif_normal.hints.urgency = Urgency::Normal;
+
+        let mut notif_critical = create_test_notification("test", "Critical");
+        notif_critical.hints.urgency = Urgency::Critical;
+
+        manager.add_notification(notif_normal);
+        manager.add_notification(notif_critical);
+
+        // Only critical should be displayed
+        assert_eq!(manager.active_count(), 1);
+        assert_eq!(manager.active_notifications()[0].summary, "Critical");
+    }
+
+    #[test]
+    fn test_load_app_filters() {
+        let mut manager = NotificationManager::new();
+
+        let mut filters = HashMap::new();
+        filters.insert("blocked_app".to_string(), false);
+        filters.insert("allowed_app".to_string(), true);
+
+        manager.load_app_filters(filters);
+
+        // Test blocked app
+        let notif_blocked = create_test_notification("blocked_app", "Blocked");
+        let action = manager.add_notification(notif_blocked);
+        assert_eq!(action, NotificationAction::AddedToHistoryOnly);
+
+        // Test allowed app
+        let notif_allowed = create_test_notification("allowed_app", "Allowed");
+        let action = manager.add_notification(notif_allowed);
+        assert_eq!(action, NotificationAction::Displayed);
+    }
+
+    #[test]
+    fn test_critical_bypasses_dnd_but_not_app_filter() {
+        let mut manager = NotificationManager::new();
+        manager.set_do_not_disturb(true);
+        manager.set_app_filter("blocked_app".to_string(), false);
+
+        // Critical notification from blocked app
+        let mut notification = create_test_notification("blocked_app", "Critical");
+        notification.hints.urgency = Urgency::Critical;
+
+        let action = manager.add_notification(notification);
+
+        // Should be filtered by app filter even though critical
+        assert_eq!(action, NotificationAction::AddedToHistoryOnly);
+        assert_eq!(manager.active_count(), 0);
+    }
+
+    #[test]
+    fn test_urgency_filter_blocks_critical() {
+        let mut manager = NotificationManager::new();
+        manager.set_min_urgency_level(0); // Show all
+        manager.set_app_filter("test".to_string(), false); // Block app
+
+        let mut notification = create_test_notification("test", "Critical");
+        notification.hints.urgency = Urgency::Critical;
+
+        let action = manager.add_notification(notification);
+
+        // App filter should block even critical notifications
+        assert_eq!(action, NotificationAction::AddedToHistoryOnly);
+    }
+
+    #[test]
+    fn test_set_min_urgency_level_clamping() {
+        let mut manager = NotificationManager::new();
+
+        // Test clamping to maximum
+        manager.set_min_urgency_level(5);
+        assert_eq!(manager.min_urgency_level(), 2);
+
+        // Test valid value
+        manager.set_min_urgency_level(1);
+        assert_eq!(manager.min_urgency_level(), 1);
     }
 }
