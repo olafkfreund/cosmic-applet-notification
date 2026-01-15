@@ -12,6 +12,7 @@ use cosmic::widget::button::standard as button_standard;
 use cosmic::widget::button::suggested as button_suggested;
 
 use crate::dbus::Notification;
+use crate::ui::animation::NotificationAnimation;
 use crate::ui::url_parser::{TextSegment, parse_text};
 
 /// Create a notification card widget
@@ -22,6 +23,7 @@ use crate::ui::url_parser::{TextSegment, parse_text};
 /// Performance: Accepts a reference to avoid cloning notification data on every frame.
 pub fn notification_card<'a, Message>(
     notification: &'a Notification,
+    animation: Option<&'a NotificationAnimation>,
     is_selected: bool,
     selected_action_index: Option<usize>,
     on_dismiss: impl Fn(u32) -> Message + 'a,
@@ -88,11 +90,32 @@ where
     // Wrap in container with selection styling
     let container = container(content).width(Length::Fill);
 
-    if is_selected {
-        container.style(selected_notification_style).into()
+    // Apply selection styling
+    let container = if is_selected {
+        container.style(selected_notification_style)
     } else {
-        container.into()
+        container
+    };
+
+    // Log animation state if present
+    // TODO: Apply visual transformations (opacity, translation, scale) when iced supports it
+    // Currently iced/libcosmic has limited transform/opacity support for Elements
+    // Animation state is tracked correctly and can be applied via custom rendering in the future
+    if let Some(anim) = animation {
+        let opacity = anim.opacity.value();
+        let translation_y = anim.translation_y.value();
+        let scale = anim.scale.value();
+
+        tracing::trace!(
+            "Animation state for notification {}: opacity={:.2}, translation_y={:.2}, scale={:.2}",
+            notification.id,
+            opacity,
+            translation_y,
+            scale
+        );
     }
+
+    container.into()
 }
 
 /// Create a container style for selected notifications

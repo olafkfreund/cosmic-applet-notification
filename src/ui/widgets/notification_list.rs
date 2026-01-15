@@ -2,13 +2,14 @@
 //
 // Displays a scrollable list of notifications with empty state handling.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 use cosmic::Element;
 use cosmic::iced::Length;
 use cosmic::widget::{column, container, scrollable, text};
 
 use crate::dbus::Notification;
+use crate::ui::animation::NotificationAnimation;
 use crate::ui::widgets::notification_card;
 
 /// Create a notification list widget
@@ -19,6 +20,7 @@ use crate::ui::widgets::notification_card;
 /// Performance: Accepts a reference to avoid copying notification data on every frame.
 pub fn notification_list<'a, Message>(
     notifications: &'a VecDeque<Notification>,
+    notification_animations: &'a HashMap<u32, NotificationAnimation>,
     selected_index: Option<usize>,
     selected_action_index: Option<usize>,
     on_dismiss: impl Fn(u32) -> Message + 'a + Clone,
@@ -57,8 +59,13 @@ where
             } else {
                 None
             };
+
+            // Get animation state for this notification (if any)
+            let animation = notification_animations.get(&notification.id);
+
             col.push(notification_card::notification_card(
                 notification,
+                animation,
                 is_selected,
                 action_index,
                 on_dismiss.clone(),

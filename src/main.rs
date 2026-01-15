@@ -945,6 +945,7 @@ impl Application for NotificationApplet {
             // Create notification list view with clickable URLs and action buttons
             let notification_list = ui::widgets::notification_list(
                 notifications,
+                &self.notification_animations,
                 self.selected_notification_index,
                 self.selected_action_index,
                 Message::DismissNotification,
