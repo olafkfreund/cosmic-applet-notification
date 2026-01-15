@@ -1,0 +1,36 @@
+// COSMIC Notification Applet - Minimal Configuration
+//
+// A clean, simple configuration with minimal features enabled.
+// Perfect for users who want basic notification functionality.
+
+AppletConfig(
+    // Filtering
+    do_not_disturb: false,
+    min_urgency_level: 0,  // Show all notifications
+
+    // History disabled for minimal setup
+    history_enabled: false,
+    max_history_items: 0,
+    history_retention_days: 0,
+
+    // Simple Auto positioning (appears near applet icon)
+    popup_position: PopupPosition(
+        mode: Auto,
+        anchor: AppletIcon,
+        offset_x: 0,
+        offset_y: 0,
+        snap_to_edge: false,
+        snap_threshold: 20,
+    ),
+
+    // Animations disabled for minimal/snappy feel
+    animations: AnimationConfig(
+        enabled: false,
+        notification_appear: false,
+        notification_dismiss: false,
+        show_progress: false,
+    ),
+
+    // No app filters
+    app_filters: {},
+)

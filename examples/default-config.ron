@@ -1,0 +1,98 @@
+// COSMIC Notification Applet - Default Configuration
+//
+// This is the default configuration that ships with the applet.
+// Copy this to ~/.config/cosmic/com.cosmic.applet.notifications/config.ron
+// and customize to your preferences.
+//
+// Format: RON (Rusty Object Notation) - https://github.com/ron-rs/ron
+
+AppletConfig(
+    // ========================================
+    // Filtering & Do Not Disturb
+    // ========================================
+
+    // Enable Do Not Disturb mode (suppresses Low and Normal urgency notifications)
+    do_not_disturb: false,
+
+    // Minimum urgency level to display:
+    // 0 = All notifications (Low, Normal, Critical)
+    // 1 = Normal and Critical only
+    // 2 = Critical only
+    min_urgency_level: 0,
+
+    // ========================================
+    // Notification History
+    // ========================================
+
+    // Enable persistent notification history
+    history_enabled: true,
+
+    // Maximum number of notifications to keep in history
+    max_history_items: 100,
+
+    // Number of days to retain notifications before auto-deletion
+    history_retention_days: 7,
+
+    // ========================================
+    // Popup Position
+    // ========================================
+
+    popup_position: PopupPosition(
+        // Position mode:
+        // - Auto: Popup appears near applet icon (default)
+        // - PanelRelative: Custom positioning relative to panel
+        mode: Auto,
+
+        // Anchor point (used in PanelRelative mode):
+        // - Start: Left (horizontal) or Top (vertical panel)
+        // - Center: Middle of panel
+        // - End: Right (horizontal) or Bottom (vertical panel)
+        // - AppletIcon: At applet location (like Auto)
+        anchor: AppletIcon,
+
+        // Horizontal offset in pixels (-500 to 500)
+        // Positive = right, Negative = left
+        offset_x: 0,
+
+        // Vertical offset in pixels (-500 to 500)
+        // Positive = down, Negative = up
+        offset_y: 0,
+
+        // Enable snap-to-edge (automatically snap to screen edge when close)
+        snap_to_edge: true,
+
+        // Distance threshold for snap-to-edge in pixels (5-100)
+        snap_threshold: 20,
+    ),
+
+    // ========================================
+    // Animations
+    // ========================================
+
+    animations: AnimationConfig(
+        // Master toggle for all animations
+        enabled: true,
+
+        // Enable fade-in/slide-in when notifications appear
+        notification_appear: true,
+
+        // Enable fade-out/slide-out when notifications are dismissed
+        notification_dismiss: true,
+
+        // Show progress bars for timed notifications
+        show_progress: true,
+    ),
+
+    // ========================================
+    // Per-Application Filters
+    // ========================================
+
+    // Block or allow notifications from specific applications
+    // Format: "Application Name": true (allow) or false (block)
+    // Example:
+    // app_filters: {
+    //     "Spotify": false,  // Block Spotify notifications
+    //     "Slack": true,     // Allow Slack notifications
+    // },
+    app_filters: {},
+)

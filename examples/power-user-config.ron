@@ -1,0 +1,53 @@
+// COSMIC Notification Applet - Power User Configuration
+//
+// Advanced configuration with custom positioning, extensive filtering,
+// and optimized for keyboard-driven workflow.
+
+AppletConfig(
+    // Start with DND off, but easily toggle with Ctrl+D
+    do_not_disturb: false,
+
+    // Filter out Low urgency by default (only Normal and Critical)
+    min_urgency_level: 1,
+
+    // Extended history for power users
+    history_enabled: true,
+    max_history_items: 500,  // Keep more history
+    history_retention_days: 30,  // One month retention
+
+    // Custom positioning: top-right corner with offset
+    popup_position: PopupPosition(
+        mode: PanelRelative,
+        anchor: End,  // Right side of panel
+        offset_x: -20,  // 20px from right edge
+        offset_y: 10,   // 10px below panel
+        snap_to_edge: true,
+        snap_threshold: 30,  // Larger snap zone
+    ),
+
+    // Full animation suite enabled
+    animations: AnimationConfig(
+        enabled: true,
+        notification_appear: true,
+        notification_dismiss: true,
+        show_progress: true,
+    ),
+
+    // Curated app filters for focused workflow
+    app_filters: {
+        // Block distracting apps
+        "Spotify": false,
+        "Discord": false,
+        "Steam": false,
+
+        // Allow work-critical apps
+        "Slack": true,
+        "Thunderbird": true,
+        "Signal": true,
+        "Teams": true,
+
+        // Allow system notifications
+        "System": true,
+        "Updates": true,
+    },
+)

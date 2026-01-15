@@ -1,0 +1,77 @@
+// COSMIC Notification Applet - Accessibility Configuration
+//
+// Optimized for users with:
+// - Motion sensitivity or vestibular disorders
+// - Visual impairments
+// - Motor control challenges
+// - Screen reader usage
+//
+// Note: The applet automatically respects system prefers-reduced-motion
+// setting via XDG Desktop Portal. This config provides explicit settings.
+
+AppletConfig(
+    // Standard filtering (can be adjusted as needed)
+    do_not_disturb: false,
+    min_urgency_level: 0,
+
+    // Extended history for review (important for accessibility)
+    history_enabled: true,
+    max_history_items: 200,
+    history_retention_days: 14,
+
+    // Consistent, predictable positioning
+    // Always appears in the same location for familiarity
+    popup_position: PopupPosition(
+        mode: PanelRelative,
+        anchor: Center,  // Centered for easy access
+        offset_x: 0,
+        offset_y: 0,
+        snap_to_edge: false,  // Precise positioning
+        snap_threshold: 20,
+    ),
+
+    // All animations DISABLED
+    // Essential for users with motion sensitivity
+    // The applet also respects system prefers-reduced-motion automatically
+    animations: AnimationConfig(
+        enabled: false,  // Master disable
+        notification_appear: false,
+        notification_dismiss: false,
+        show_progress: false,  // No animated progress bars
+    ),
+
+    // Minimal app filtering (don't hide potentially important notifications)
+    app_filters: {},
+)
+
+// ========================================
+// Additional Accessibility Notes
+// ========================================
+//
+// KEYBOARD NAVIGATION:
+// - Full keyboard control available (see USER_GUIDE.md)
+// - Arrow keys for navigation
+// - Enter/Delete for actions
+// - Tab for cycling through buttons
+//
+// SYSTEM INTEGRATION:
+// - Applet automatically detects prefers-reduced-motion setting
+// - When system reduced motion is enabled, all animations are disabled
+// - No configuration needed - works automatically
+//
+// VISUAL FEEDBACK:
+// - High contrast selection borders
+// - Clear focus indicators
+// - Works with COSMIC high contrast themes
+//
+// SCREEN READER COMPATIBILITY:
+// - Built on COSMIC/iced accessibility framework
+// - Semantic UI structure
+// - Proper focus management
+//
+// TO ENABLE SYSTEM REDUCED MOTION:
+// On GNOME-based systems:
+//   gsettings set org.gnome.desktop.interface enable-animations false
+//
+// On other systems:
+//   Check system settings for "Reduce Animation" option

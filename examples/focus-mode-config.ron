@@ -1,0 +1,54 @@
+// COSMIC Notification Applet - Focus Mode Configuration
+//
+// Optimized for deep work and concentration.
+// Aggressive filtering to minimize distractions.
+
+AppletConfig(
+    // DND enabled by default
+    do_not_disturb: true,
+
+    // Critical notifications only (errors, system warnings)
+    min_urgency_level: 2,
+
+    // Minimal history (not the focus)
+    history_enabled: true,
+    max_history_items: 20,
+    history_retention_days: 1,
+
+    // Simple positioning (not distracting)
+    popup_position: PopupPosition(
+        mode: Auto,
+        anchor: AppletIcon,
+        offset_x: 0,
+        offset_y: 0,
+        snap_to_edge: false,
+        snap_threshold: 20,
+    ),
+
+    // No animations (instant, non-distracting)
+    animations: AnimationConfig(
+        enabled: false,
+        notification_appear: false,
+        notification_dismiss: false,
+        show_progress: false,
+    ),
+
+    // Block all non-critical apps
+    app_filters: {
+        // Block all social/entertainment
+        "Discord": false,
+        "Slack": false,
+        "Spotify": false,
+        "Steam": false,
+        "Telegram": false,
+        "Signal": false,
+
+        // Block email notifications (check manually)
+        "Thunderbird": false,
+        "Evolution": false,
+
+        // Only allow critical system notifications
+        "System": true,
+        "Updates": true,
+    },
+)
