@@ -135,6 +135,9 @@ pub enum Message {
     /// Complete notification dismissal after animation
     CompleteNotificationDismissal(u32),
 
+    /// Update prefers-reduced-motion accessibility setting
+    UpdatePrefersReducedMotion(bool),
+
     /// Tick for periodic updates
     Tick,
 
@@ -255,10 +258,16 @@ impl Application for NotificationApplet {
             notification_animations: std::collections::HashMap::new(),
             popup_animation: None,
             progress_indicators: std::collections::HashMap::new(),
-            prefers_reduced_motion: false, // TODO: Detect from system settings
+            prefers_reduced_motion: false, // Will be detected asynchronously
         };
 
-        (app, Task::none())
+        // Detect prefers-reduced-motion accessibility setting on startup
+        let detect_task = Task::future(async {
+            let prefers_reduced = cosmic_applet_notifications::accessibility::detect_prefers_reduced_motion().await;
+            cosmic::Action::App(Message::UpdatePrefersReducedMotion(prefers_reduced))
+        });
+
+        (app, detect_task)
     }
 
     fn update(&mut self, message: Self::Message) -> Task<cosmic::Action<Self::Message>> {
@@ -333,8 +342,11 @@ impl Application for NotificationApplet {
                     action
                 );
 
-                // Start appear animation if enabled
-                if self.config.animations.enabled && self.config.animations.notification_appear {
+                // Start appear animation if enabled (respect accessibility preferences)
+                if self.config.animations.enabled
+                    && self.config.animations.notification_appear
+                    && !self.prefers_reduced_motion
+                {
                     return self.update(Message::StartAppearAnimation(notification.id));
                 }
 
@@ -349,8 +361,11 @@ impl Application for NotificationApplet {
             }
 
             Message::DismissNotification(id) => {
-                // Start dismiss animation if enabled, otherwise dismiss immediately
-                if self.config.animations.enabled && self.config.animations.notification_dismiss {
+                // Start dismiss animation if enabled (respect accessibility preferences)
+                if self.config.animations.enabled
+                    && self.config.animations.notification_dismiss
+                    && !self.prefers_reduced_motion
+                {
                     return self.update(Message::StartDismissAnimation(id));
                 } else {
                     // Immediate dismissal without animation
@@ -858,7 +873,8 @@ impl Application for NotificationApplet {
                             animation.animation_type,
                             ui::animation::NotificationAnimationType::Dismissing
                         ) {
-                            return self.update(Message::CompleteNotificationDismissal(notification_id));
+                            return self
+                                .update(Message::CompleteNotificationDismissal(notification_id));
                         }
                     }
                 }
@@ -876,9 +892,13 @@ impl Application for NotificationApplet {
                     ui::animation::AnimationDuration::NORMAL,
                 );
 
-                self.notification_animations.insert(notification_id, animation);
+                self.notification_animations
+                    .insert(notification_id, animation);
 
-                tracing::debug!("Started appear animation for notification {}", notification_id);
+                tracing::debug!(
+                    "Started appear animation for notification {}",
+                    notification_id
+                );
             }
 
             Message::StartDismissAnimation(notification_id) => {
@@ -894,7 +914,8 @@ impl Application for NotificationApplet {
                     ui::animation::AnimationDuration::FAST,
                 );
 
-                self.notification_animations.insert(notification_id, animation);
+                self.notification_animations
+                    .insert(notification_id, animation);
 
                 tracing::debug!(
                     "Started dismiss animation for notification {}",
@@ -919,6 +940,16 @@ impl Application for NotificationApplet {
 
                 // Validate selection after removing notification
                 self.validate_selection();
+            }
+
+            Message::UpdatePrefersReducedMotion(prefers_reduced) => {
+                self.prefers_reduced_motion = prefers_reduced;
+
+                if prefers_reduced {
+                    tracing::info!("Accessibility: prefers-reduced-motion enabled - animations will be disabled");
+                } else {
+                    tracing::debug!("Accessibility: prefers-reduced-motion disabled - animations will respect config");
+                }
             }
         }
 
@@ -1016,13 +1047,16 @@ impl Application for NotificationApplet {
         ];
 
         // Add animation frame subscription if animations are enabled and there are active animations
+        // (respect accessibility preferences)
         if self.config.animations.enabled
+            && !self.prefers_reduced_motion
             && (!self.notification_animations.is_empty()
                 || self.popup_animation.is_some()
                 || !self.progress_indicators.is_empty())
         {
             // 60fps animation updates
-            subscriptions.push(time::every(Duration::from_millis(16)).map(|_| Message::AnimationFrame));
+            subscriptions
+                .push(time::every(Duration::from_millis(16)).map(|_| Message::AnimationFrame));
         }
 
         cosmic::iced::Subscription::batch(subscriptions)
