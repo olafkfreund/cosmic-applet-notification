@@ -66,9 +66,7 @@ pub fn calculate_popup_position(
 ) -> (Anchor, Gravity, (i32, i32)) {
     match config.mode {
         PositionMode::Auto => calculate_auto_position(panel_edge),
-        PositionMode::PanelRelative => {
-            calculate_panel_relative_position(config, panel_edge)
-        }
+        PositionMode::PanelRelative => calculate_panel_relative_position(config, panel_edge),
     }
 }
 

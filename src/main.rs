@@ -59,6 +59,27 @@ pub enum Message {
     /// Toggle app filter (app_name, enabled)
     ToggleAppFilter(String, bool),
 
+    /// Set position mode (Auto / Panel Relative)
+    SetPositionMode(config::PositionMode),
+
+    /// Set panel anchor point
+    SetPanelAnchor(config::PanelAnchor),
+
+    /// Set X offset for popup position
+    SetOffsetX(i32),
+
+    /// Set Y offset for popup position
+    SetOffsetY(i32),
+
+    /// Toggle snap-to-edge feature
+    ToggleSnapToEdge,
+
+    /// Set snap-to-edge threshold
+    SetSnapThreshold(u32),
+
+    /// Preview the current popup position
+    PreviewPosition,
+
     /// Tick for periodic updates
     Tick,
 
@@ -314,6 +335,100 @@ impl Application for NotificationApplet {
                 }
             }
 
+            Message::SetPositionMode(mode) => {
+                // Update position mode
+                self.config.popup_position.mode = mode;
+
+                // Save config
+                if let Err(e) = self.config_helper.save(&self.config) {
+                    tracing::error!("Failed to save config: {}", e);
+                } else {
+                    tracing::info!("Position mode set to {:?}", mode);
+                }
+            }
+
+            Message::SetPanelAnchor(anchor) => {
+                // Update panel anchor
+                self.config.popup_position.anchor = anchor;
+
+                // Save config
+                if let Err(e) = self.config_helper.save(&self.config) {
+                    tracing::error!("Failed to save config: {}", e);
+                } else {
+                    tracing::info!("Panel anchor set to {:?}", anchor);
+                }
+            }
+
+            Message::SetOffsetX(x) => {
+                // Update X offset
+                self.config.popup_position.offset_x = x;
+
+                // Save config
+                if let Err(e) = self.config_helper.save(&self.config) {
+                    tracing::error!("Failed to save config: {}", e);
+                } else {
+                    tracing::debug!("Offset X set to {}", x);
+                }
+            }
+
+            Message::SetOffsetY(y) => {
+                // Update Y offset
+                self.config.popup_position.offset_y = y;
+
+                // Save config
+                if let Err(e) = self.config_helper.save(&self.config) {
+                    tracing::error!("Failed to save config: {}", e);
+                } else {
+                    tracing::debug!("Offset Y set to {}", y);
+                }
+            }
+
+            Message::ToggleSnapToEdge => {
+                // Toggle snap-to-edge
+                self.config.popup_position.snap_to_edge =
+                    !self.config.popup_position.snap_to_edge;
+
+                // Save config
+                if let Err(e) = self.config_helper.save(&self.config) {
+                    tracing::error!("Failed to save config: {}", e);
+                } else {
+                    tracing::info!(
+                        "Snap to edge {}",
+                        if self.config.popup_position.snap_to_edge {
+                            "enabled"
+                        } else {
+                            "disabled"
+                        }
+                    );
+                }
+            }
+
+            Message::SetSnapThreshold(threshold) => {
+                // Update snap threshold
+                self.config.popup_position.snap_threshold = threshold;
+
+                // Save config
+                if let Err(e) = self.config_helper.save(&self.config) {
+                    tracing::error!("Failed to save config: {}", e);
+                } else {
+                    tracing::debug!("Snap threshold set to {}", threshold);
+                }
+            }
+
+            Message::PreviewPosition => {
+                // Close current popup if open, then reopen to show new position
+                if let Some(id) = self.popup_id.take() {
+                    tracing::info!("Closing popup for position preview");
+                    return cosmic::iced::platform_specific::shell::commands::popup::destroy_popup(
+                        id,
+                    );
+                } else {
+                    // Open popup to preview position
+                    tracing::info!("Opening popup to preview position");
+                    return self.update(Message::TogglePopup);
+                }
+            }
+
             Message::KeyboardEvent(event) => {
                 use cosmic::iced::keyboard::{Event as KeyEvent, Key};
 
@@ -419,11 +534,25 @@ impl Application for NotificationApplet {
                 |app_name, enabled| Message::ToggleAppFilter(app_name, enabled),
             );
 
+            // Create position settings view
+            let position_settings = ui::widgets::position_settings(
+                &self.config.popup_position,
+                |mode| Message::SetPositionMode(mode),
+                |anchor| Message::SetPanelAnchor(anchor),
+                |x| Message::SetOffsetX(x),
+                |y| Message::SetOffsetY(y),
+                Message::ToggleSnapToEdge,
+                |threshold| Message::SetSnapThreshold(threshold),
+                Message::PreviewPosition,
+            );
+
             // Combine notification list and settings
             let content = column()
                 .push(notification_list)
                 .push(divider::horizontal::default())
                 .push(filter_settings)
+                .push(divider::horizontal::default())
+                .push(position_settings)
                 .spacing(0.0);
 
             self.core.applet.popup_container(content).into()
