@@ -1,0 +1,93 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this bug!
+  
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: What happened?
+    validations:
+      required: true
+  
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+  
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: What should have happened?
+    validations:
+      required: true
+  
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: What actually happened?
+    validations:
+      required: true
+  
+  - type: input
+    id: nixos-version
+    attributes:
+      label: NixOS Version
+      description: Output of `nixos-version`
+      placeholder: "23.11.20240101.abcd123 (Tapir)"
+    validations:
+      required: true
+  
+  - type: input
+    id: cosmic-version
+    attributes:
+      label: COSMIC Desktop Version
+      description: COSMIC Alpha version (e.g., Alpha 6, Alpha 7)
+      placeholder: "Alpha 7"
+    validations:
+      required: true
+  
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: |
+        Please provide relevant logs. Run with: `RUST_LOG=trace cosmic-applet-notifications`
+        Or check panel logs: `journalctl --user -u cosmic-panel | grep cosmic-applet-notifications`
+      render: shell
+      placeholder: Paste logs here
+  
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration File
+      description: |
+        If applicable, paste your config file from: 
+        `~/.config/cosmic/com.cosmic.applet.notifications/config.ron`
+      render: rust
+      placeholder: Paste config here (if relevant)
+  
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here
+      placeholder: Any other relevant information
