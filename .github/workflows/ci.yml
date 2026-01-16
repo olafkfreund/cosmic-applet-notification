@@ -26,50 +26,73 @@ jobs:
         uses: cachix/cachix-action@v14
         with:
           name: cosmic
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          skipPush: true
+          # Auth token for pushing to Cachix (using CACHIX_KEY secret)
+          # Note: Only pushes on main branch, PRs use read-only mode
+          authToken: '${{ secrets.CACHIX_KEY }}'
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       
       - name: Check Nix flake
         run: nix flake check
       
       - name: Build package
-        run: nix build .#default
-      
+        run: nix build .#default --print-build-logs
+
+      - name: Build development shell
+        run: nix develop --profile dev-profile -c echo "Dev shell built"
+
+      - name: Push development shell to Cachix
+        if: github.ref == 'refs/heads/main'
+        run: cachix push cosmic dev-profile
+
       - name: Run tests
         run: nix develop -c cargo test
 
   format-check:
     name: Format Check
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Install Nix
         uses: cachix/install-nix-action@v25
         with:
           nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             experimental-features = nix-command flakes
-      
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v14
+        with:
+          name: cosmic
+          authToken: '${{ secrets.CACHIX_KEY }}'
+          skipPush: true  # Read-only for this job
+
       - name: Check formatting
         run: nix develop -c cargo fmt -- --check
 
   clippy:
     name: Clippy Lint
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Install Nix
         uses: cachix/install-nix-action@v25
         with:
           nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             experimental-features = nix-command flakes
-      
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v14
+        with:
+          name: cosmic
+          authToken: '${{ secrets.CACHIX_KEY }}'
+          skipPush: true  # Read-only for this job
+
       - name: Run Clippy
         run: nix develop -c cargo clippy -- -D warnings
