@@ -19,6 +19,7 @@ use crate::ui::theme::Spacing;
 /// - X/Y offset sliders
 /// - Snap-to-edge toggle
 /// - Position preview button
+#[allow(clippy::too_many_arguments)]
 pub fn position_settings<'a, Message>(
     position: &'a PopupPosition,
     on_mode_change: impl Fn(PositionMode) -> Message + 'a + Clone,

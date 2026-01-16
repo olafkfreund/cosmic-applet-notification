@@ -175,16 +175,18 @@ mod tests {
     fn test_save_and_load() {
         let (helper, _temp) = create_test_helper();
 
-        let mut config = AppletConfig::default();
-        config.do_not_disturb = true;
-        config.max_visible_notifications = 15;
+        let config = AppletConfig {
+            do_not_disturb: true,
+            max_visible_notifications: 15,
+            ..Default::default()
+        };
 
         // Save
         helper.save(&config).unwrap();
 
         // Load
         let loaded = helper.load();
-        assert_eq!(loaded.do_not_disturb, true);
+        assert!(loaded.do_not_disturb);
         assert_eq!(loaded.max_visible_notifications, 15);
     }
 
@@ -200,6 +202,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_sanitize_on_load() {
         let (helper, _temp) = create_test_helper();
 

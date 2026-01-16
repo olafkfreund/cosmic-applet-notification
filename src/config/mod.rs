@@ -498,6 +498,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_invalid_max_visible() {
         let mut config = AppletConfig::default();
         config.max_visible_notifications = 0;
@@ -508,6 +509,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_invalid_popup_dimensions() {
         let mut config = AppletConfig::default();
         config.popup_width = 100;
@@ -518,6 +520,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_sanitize() {
         let mut config = AppletConfig::default();
         config.max_visible_notifications = 0;
@@ -558,6 +561,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_invalid_timeout() {
         let mut config = AppletConfig::default();
         config.default_timeout = Some(400_000); // Exceeds 300,000ms max
@@ -574,6 +578,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_invalid_retention_days() {
         let mut config = AppletConfig::default();
         config.history_retention_days = Some(400); // Exceeds 365 days
@@ -628,6 +633,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_popup_area_validation() {
         let mut config = AppletConfig::default();
 

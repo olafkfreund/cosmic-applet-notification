@@ -53,7 +53,7 @@ pub enum Message {
     ClosePopup,
 
     /// A new notification was received from D-Bus
-    NotificationReceived(dbus::Notification),
+    NotificationReceived(Box<dbus::Notification>),
 
     /// Dismiss a notification by ID
     DismissNotification(u32),
@@ -148,7 +148,7 @@ pub enum Message {
 // Implement From<Notification> for Message to work with subscription
 impl From<dbus::Notification> for Message {
     fn from(notification: dbus::Notification) -> Self {
-        Message::NotificationReceived(notification)
+        Message::NotificationReceived(Box::new(notification))
     }
 }
 
@@ -333,6 +333,9 @@ impl Application for NotificationApplet {
             }
 
             Message::NotificationReceived(notification) => {
+                // Dereference the Box to get the notification
+                let notification = *notification;
+
                 // Add notification to manager
                 let action = self.manager.add_notification(notification.clone());
 
