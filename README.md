@@ -190,22 +190,49 @@ This applet implements the freedesktop.org D-Bus notification specification to r
 
 ## Installation
 
-### Quick Installation
+### Quick Start: NixOS Flake Installation (Recommended)
 
-**Method 1: NixOS Flake (Recommended)**
+This guide shows you how to install the COSMIC Notification Applet on NixOS using Nix flakes.
 
-Add to your `flake.nix`:
+#### Prerequisites
+
+Before starting, ensure you have:
+- NixOS 22.05 or later
+- COSMIC Desktop Environment installed and running
+- Nix flakes enabled in your configuration
+
+If you haven't enabled flakes yet, add this to your `configuration.nix`:
 
 ```nix
 {
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+}
+```
+
+Then rebuild: `sudo nixos-rebuild switch`
+
+#### Step 1: Add the Flake Input
+
+Edit your system's `flake.nix` file and add the cosmic-applet-notifications input:
+
+```nix
+{
+  description = "My NixOS Configuration";
+
   inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
+    # Add this line:
     cosmic-applet-notifications.url = "github:olafkfreund/cosmic-applet-notification";
   };
 
   outputs = { self, nixpkgs, cosmic-applet-notifications, ... }: {
     nixosConfigurations.yourhostname = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
       modules = [
         ./configuration.nix
+
+        # Add this line:
         cosmic-applet-notifications.nixosModules.default
       ];
     };
@@ -213,20 +240,68 @@ Add to your `flake.nix`:
 }
 ```
 
-Then in `configuration.nix`:
+Replace `yourhostname` with your actual hostname.
+
+#### Step 2: Enable the Service
+
+Add this to your `configuration.nix`:
 
 ```nix
 {
+  # Enable the COSMIC notification applet
   services.cosmic-applet-notifications.enable = true;
 }
 ```
 
-Rebuild and restart the panel:
+#### Step 3: Rebuild Your System
 
 ```bash
-sudo nixos-rebuild switch
+# Update flake inputs to get the latest version
+nix flake update
+
+# Rebuild your system
+sudo nixos-rebuild switch --flake .#yourhostname
+```
+
+Replace `yourhostname` with your actual hostname.
+
+#### Step 4: Restart COSMIC Panel
+
+After the rebuild completes, restart the COSMIC panel to load the applet:
+
+```bash
 cosmic-panel --reload
 ```
+
+Or log out and log back in to restart your COSMIC session.
+
+#### Step 5: Verify Installation
+
+Check that the applet is running:
+
+```bash
+# Check if the binary is installed
+which cosmic-applet-notifications
+
+# Verify it's running
+ps aux | grep cosmic-applet-notifications
+```
+
+Look for a bell/notification icon in your COSMIC panel. Click it to open the notification popup.
+
+#### Test the Applet
+
+Send a test notification to verify it's working:
+
+```bash
+notify-send "Test Notification" "Hello from COSMIC Notification Applet!"
+```
+
+The notification should appear, and you should be able to see it in the applet's history by clicking the panel icon.
+
+---
+
+### Alternative Installation Methods
 
 **Method 2: Direct Package Installation**
 
