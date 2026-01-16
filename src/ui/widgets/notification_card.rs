@@ -44,11 +44,9 @@ where
         .spacing(Spacing::xs())
         .align_y(cosmic::iced::Alignment::Center);
 
-    // Add app icon placeholder (will be implemented with actual icon loading)
-    let urgency_icon: cosmic::widget::Icon = icon::from_name(UrgencyStyle::icon_name(notification.urgency()))
-        .size(ComponentSize::STATUS_ICON)
-        .into();
-    header_row = header_row.push(urgency_icon);
+    // Resolve app icon with fallback to urgency icon
+    let app_icon: cosmic::widget::Icon = resolve_notification_icon(notification);
+    header_row = header_row.push(app_icon);
 
     // App name
     header_row = header_row.push(text::body(&notification.app_name));
@@ -103,8 +101,26 @@ where
         .padding([Spacing::s(), Spacing::m()])
         .width(Length::Fill);
 
-    // Wrap in container with urgency and selection styling
-    let container = container(content)
+    // Add urgency indicator bar (left border) for non-selected notifications
+    let content_with_urgency: Element<'a, Message> = if is_selected {
+        // Selected: use full border in style
+        content.into()
+    } else {
+        // Not selected: add colored left border indicator
+        let urgency_bar = container(cosmic::iced::widget::vertical_space())
+            .width(Length::Fixed(ComponentSize::URGENCY_BORDER_WIDTH))
+            .height(Length::Fill)
+            .style(urgency_bar_style(notification.urgency()));
+
+        row()
+            .push(urgency_bar)
+            .push(content)
+            .width(Length::Fill)
+            .into()
+    };
+
+    // Wrap in container with selection styling
+    let container = container(content_with_urgency)
         .width(Length::Fill)
         .style(notification_style(notification.urgency(), is_selected));
 
@@ -129,43 +145,57 @@ where
     container.into()
 }
 
-/// Create a container style for notifications with urgency indicators and selection state
+/// Create a container style for urgency indicator bar (left border)
+///
+/// Creates a colored vertical bar that indicates notification urgency level.
+fn urgency_bar_style(
+    urgency: Urgency,
+) -> impl Fn(&cosmic::Theme) -> cosmic::iced::widget::container::Style {
+    move |_theme: &cosmic::Theme| {
+        let border_color = UrgencyStyle::border_color(urgency);
+
+        cosmic::iced::widget::container::Style {
+            text_color: None,
+            background: Some(border_color.into()),
+            border: cosmic::iced::Border::default(),
+            shadow: cosmic::iced::Shadow::default(),
+            icon_color: None,
+        }
+    }
+}
+
+/// Create a container style for notifications with selection state
 ///
 /// Applies:
-/// - Left border colored by urgency level (subtle for low, accent for normal, red for critical)
-/// - Selection highlight with accent background tint (15% opacity)
+/// - Selection highlight with accent background tint (15% opacity) and border
 /// - Rounded corners using COSMIC theme
+/// - Urgency is indicated via separate left border bar (see urgency_bar_style)
 fn notification_style(
-    urgency: Urgency,
+    _urgency: Urgency,
     is_selected: bool,
 ) -> impl Fn(&cosmic::Theme) -> cosmic::iced::widget::container::Style {
     move |theme: &cosmic::Theme| {
         let cosmic = theme.cosmic();
 
-        // Determine border color based on urgency
-        let border_color = UrgencyStyle::border_color(urgency);
-
-        // Selection background tint
-        let background = if is_selected {
-            Some(SemanticColors::accent_alpha(0.15).into())
+        // Selection background tint and border
+        let (background, border) = if is_selected {
+            (
+                Some(SemanticColors::accent_alpha(0.15).into()),
+                cosmic::iced::Border {
+                    color: cosmic.accent.base.into(),
+                    width: ComponentSize::SELECTION_BORDER_WIDTH,
+                    radius: cosmic.corner_radii.radius_m.into(),
+                },
+            )
         } else {
-            None
-        };
-
-        // Border: left side colored by urgency (3px), or full border if selected
-        let border = if is_selected {
-            cosmic::iced::Border {
-                color: cosmic.accent.base.into(),
-                width: 2.0,
-                radius: cosmic.corner_radii.radius_m.into(),
-            }
-        } else {
-            // Left border only for urgency indicator
-            cosmic::iced::Border {
-                color: border_color.into(),
-                width: 0.0, // We'll use a custom left border implementation
-                radius: cosmic.corner_radii.radius_m.into(),
-            }
+            (
+                None,
+                cosmic::iced::Border {
+                    color: cosmic::iced::Color::TRANSPARENT,
+                    width: 0.0,
+                    radius: cosmic.corner_radii.radius_m.into(),
+                },
+            )
         };
 
         cosmic::iced::widget::container::Style {
@@ -264,6 +294,29 @@ where
     }
 
     action_row.into()
+}
+
+/// Resolve notification icon with fallback
+///
+/// Attempts to load the application icon, falling back to urgency indicator if unavailable.
+///
+/// # Priority
+/// 1. Application icon from `app_icon` field (if valid name/path)
+/// 2. Urgency icon based on notification level (fallback)
+fn resolve_notification_icon(notification: &Notification) -> cosmic::widget::Icon {
+    // Determine icon name with fallback chain
+    let icon_name = if !notification.app_icon.is_empty() {
+        // Use provided app icon
+        notification.app_icon.as_str()
+    } else {
+        // Fallback to urgency-based icon
+        UrgencyStyle::icon_name(notification.urgency())
+    };
+
+    // Create icon - libcosmic will handle missing icons gracefully
+    icon::from_name(icon_name)
+        .size(ComponentSize::NOTIFICATION_ICON)
+        .into()
 }
 
 /// Format timestamp for display

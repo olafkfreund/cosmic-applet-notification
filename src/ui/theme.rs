@@ -96,19 +96,43 @@ impl SemanticColors {
     }
 
     /// Accent color with custom alpha for subtle highlights
+    ///
+    /// Alpha value is clamped to 0.0..=1.0 range for safety.
     pub fn accent_alpha(alpha: f32) -> Color {
+        debug_assert!(
+            (0.0..=1.0).contains(&alpha),
+            "Alpha must be in range 0.0..=1.0, got {}",
+            alpha
+        );
+        let alpha = alpha.clamp(0.0, 1.0);
         let accent = Self::accent();
         Color::from_rgba(accent.r, accent.g, accent.b, alpha)
     }
 
     /// Destructive color with custom alpha
+    ///
+    /// Alpha value is clamped to 0.0..=1.0 range for safety.
     pub fn destructive_alpha(alpha: f32) -> Color {
+        debug_assert!(
+            (0.0..=1.0).contains(&alpha),
+            "Alpha must be in range 0.0..=1.0, got {}",
+            alpha
+        );
+        let alpha = alpha.clamp(0.0, 1.0);
         let destructive = Self::destructive();
         Color::from_rgba(destructive.r, destructive.g, destructive.b, alpha)
     }
 
     /// Warning color with custom alpha
+    ///
+    /// Alpha value is clamped to 0.0..=1.0 range for safety.
     pub fn warning_alpha(alpha: f32) -> Color {
+        debug_assert!(
+            (0.0..=1.0).contains(&alpha),
+            "Alpha must be in range 0.0..=1.0, got {}",
+            alpha
+        );
+        let alpha = alpha.clamp(0.0, 1.0);
         let warning = Self::warning();
         Color::from_rgba(warning.r, warning.g, warning.b, alpha)
     }
@@ -135,6 +159,12 @@ impl ComponentSize {
 
     /// Maximum popup height before scrolling
     pub const MAX_POPUP_HEIGHT: f32 = 600.0;
+
+    /// Border width for selected notifications
+    pub const SELECTION_BORDER_WIDTH: f32 = 2.0;
+
+    /// Border width for urgency indicator (left border)
+    pub const URGENCY_BORDER_WIDTH: f32 = 3.0;
 }
 
 /// Urgency level visual styling

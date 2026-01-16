@@ -106,7 +106,7 @@ impl HistoryStorage {
 
         // Serialize to RON format with pretty printing
         let serialized = ron::ser::to_string_pretty(&history_vec, Default::default())
-            .map_err(|e| std::io::Error::other(e))?;
+            .map_err(std::io::Error::other)?;
 
         // Write to file
         std::fs::write(&self.storage_path, serialized)?;

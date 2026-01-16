@@ -806,9 +806,11 @@ impl Application for NotificationApplet {
                         // Number keys (1-9) for quick action invocation
                         Key::Character(c) if !modifiers.control() && !modifiers.alt() => {
                             if self.popup_id.is_some() {
-                                if let Some(digit) = c.chars().next().and_then(|ch| ch.to_digit(10)) {
+                                if let Some(digit) = c.chars().next().and_then(|ch| ch.to_digit(10))
+                                {
                                     if (1..=9).contains(&digit) {
-                                        return self.update(Message::InvokeQuickAction(digit as u8));
+                                        return self
+                                            .update(Message::InvokeQuickAction(digit as u8));
                                     }
                                 }
                             }
