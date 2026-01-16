@@ -46,7 +46,7 @@ Cachix is a binary cache service for Nix that significantly speeds up builds by 
 ### Configuration
 
 **Required Secret:**
-- `CACHIX_KEY` - Authentication token for the Cachix `cosmic` cache
+- `CACHIX_AUTH_TOKEN` - Authentication token for the Cachix `cosmic` cache
   - Location: Repository Settings → Secrets and Variables → Actions
   - This should be your Cachix auth token (from https://app.cachix.org/personal-auth-tokens)
   - For security, use a per-cache token (not a personal token)
@@ -87,13 +87,13 @@ nix develop
 
 **Cache not being used:**
 - Verify the cache name is correct (`cosmic`)
-- Check that the secret `CACHIX_KEY` is set correctly
+- Check that the secret `CACHIX_AUTH_TOKEN` is set correctly
 - Ensure your Nix version supports flakes
 
 **Packages not being pushed:**
 - Only happens on `main` branch (not PRs)
 - Check workflow logs for push confirmation
-- Verify the auth token has write permissions
+- Verify the `CACHIX_AUTH_TOKEN` has write permissions to your cache
 
 **Build still slow:**
 - First build after changes will be slow (building from source)
@@ -109,7 +109,7 @@ When creating new workflows:
    - uses: cachix/cachix-action@v14
      with:
        name: cosmic
-       authToken: '${{ secrets.CACHIX_KEY }}'
+       authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
        skipPush: true  # or false for main branch
    ```
 
