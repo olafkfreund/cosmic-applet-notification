@@ -308,19 +308,19 @@ impl AppletConfig {
         }
 
         // Validate default_timeout (max 5 minutes = 300,000ms)
-        if let Some(timeout) = self.default_timeout
-            && timeout > 300_000
-        {
-            tracing::warn!("Invalid default_timeout: {}ms, must be ≤300000ms", timeout);
-            return false;
+        if let Some(timeout) = self.default_timeout {
+            if timeout > 300_000 {
+                tracing::warn!("Invalid default_timeout: {}ms, must be ≤300000ms", timeout);
+                return false;
+            }
         }
 
         // Validate history_retention_days (max 365 days = 1 year)
-        if let Some(days) = self.history_retention_days
-            && days > 365
-        {
-            tracing::warn!("Invalid history_retention_days: {}, must be ≤365", days);
-            return false;
+        if let Some(days) = self.history_retention_days {
+            if days > 365 {
+                tracing::warn!("Invalid history_retention_days: {}, must be ≤365", days);
+                return false;
+            }
         }
 
         // Validate app_filters (max 1000 entries, max 256 chars per name)
@@ -386,17 +386,17 @@ impl AppletConfig {
         self.min_urgency_level = self.min_urgency_level.min(2);
 
         // Sanitize optional timeout (max 5 minutes)
-        if let Some(timeout) = self.default_timeout
-            && timeout > 300_000
-        {
-            self.default_timeout = Some(300_000);
+        if let Some(timeout) = self.default_timeout {
+            if timeout > 300_000 {
+                self.default_timeout = Some(300_000);
+            }
         }
 
         // Sanitize optional retention period (max 1 year)
-        if let Some(days) = self.history_retention_days
-            && days > 365
-        {
-            self.history_retention_days = Some(365);
+        if let Some(days) = self.history_retention_days {
+            if days > 365 {
+                self.history_retention_days = Some(365);
+            }
         }
 
         // Sanitize app filters (limit count and name length)
@@ -498,6 +498,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_invalid_max_visible() {
         let mut config = AppletConfig::default();
         config.max_visible_notifications = 0;
@@ -508,6 +509,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_invalid_popup_dimensions() {
         let mut config = AppletConfig::default();
         config.popup_width = 100;
@@ -518,6 +520,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_sanitize() {
         let mut config = AppletConfig::default();
         config.max_visible_notifications = 0;
@@ -558,6 +561,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_invalid_timeout() {
         let mut config = AppletConfig::default();
         config.default_timeout = Some(400_000); // Exceeds 300,000ms max
@@ -574,6 +578,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_invalid_retention_days() {
         let mut config = AppletConfig::default();
         config.history_retention_days = Some(400); // Exceeds 365 days
@@ -628,6 +633,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_popup_area_validation() {
         let mut config = AppletConfig::default();
 

@@ -2,15 +2,14 @@
 //
 // Displays popup position configuration controls including mode selection,
 // anchor point selection, offset sliders, and position preview.
+// Follows COSMIC design patterns for consistent appearance.
 
 use cosmic::iced::Length;
-use cosmic::widget::{column, container, divider, row, slider, text, toggler};
+use cosmic::widget::{button, column, container, divider, row, slider, text, toggler};
 use cosmic::Element;
 
-// Import button constructors
-use cosmic::widget::button::standard as button_standard;
-
 use crate::config::{PanelAnchor, PopupPosition, PositionMode};
+use crate::ui::theme::Spacing;
 
 /// Create a position settings widget
 ///
@@ -20,6 +19,7 @@ use crate::config::{PanelAnchor, PopupPosition, PositionMode};
 /// - X/Y offset sliders
 /// - Snap-to-edge toggle
 /// - Position preview button
+#[allow(clippy::too_many_arguments)]
 pub fn position_settings<'a, Message>(
     position: &'a PopupPosition,
     on_mode_change: impl Fn(PositionMode) -> Message + 'a + Clone,
@@ -33,15 +33,15 @@ pub fn position_settings<'a, Message>(
 where
     Message: Clone + 'a + 'static,
 {
-    let mut content = column().spacing(12.0).padding(16.0);
+    let mut content = column().spacing(Spacing::s()).padding(Spacing::m());
 
     // Section header
-    content = content.push(text("Popup Position").size(16));
+    content = content.push(text::title3("Popup Position"));
 
     content = content.push(divider::horizontal::default());
 
     // Position mode selector
-    content = content.push(text("Position Mode").size(14));
+    content = content.push(text::title4("Position Mode"));
 
     let mode_buttons = row()
         .push(mode_button(
@@ -56,7 +56,7 @@ where
             on_mode_change.clone(),
             PositionMode::PanelRelative,
         ))
-        .spacing(8.0);
+        .spacing(Spacing::xs());
 
     content = content.push(mode_buttons);
 
@@ -65,7 +65,7 @@ where
         content = content.push(divider::horizontal::default());
 
         // Anchor point selector
-        content = content.push(text("Anchor Point").size(14));
+        content = content.push(text::title4("Anchor Point"));
 
         let anchor_row1 = row()
             .push(anchor_button(
@@ -80,7 +80,7 @@ where
                 on_anchor_change.clone(),
                 PanelAnchor::Center,
             ))
-            .spacing(8.0);
+            .spacing(Spacing::xs());
 
         let anchor_row2 = row()
             .push(anchor_button(
@@ -95,12 +95,12 @@ where
                 on_anchor_change.clone(),
                 PanelAnchor::AppletIcon,
             ))
-            .spacing(8.0);
+            .spacing(Spacing::xs());
 
         content = content.push(anchor_row1).push(anchor_row2);
 
         // X Offset slider
-        content = content.push(text(format!("X Offset: {} px", position.offset_x)).size(14));
+        content = content.push(text::body(format!("X Offset: {} px", position.offset_x)));
 
         let x_slider = slider(-500..=500, position.offset_x, on_offset_x_change.clone())
             .step(10)
@@ -109,7 +109,7 @@ where
         content = content.push(x_slider);
 
         // Y Offset slider
-        content = content.push(text(format!("Y Offset: {} px", position.offset_y)).size(14));
+        content = content.push(text::body(format!("Y Offset: {} px", position.offset_y)));
 
         let y_slider = slider(-500..=500, position.offset_y, on_offset_y_change.clone())
             .step(10)
@@ -119,17 +119,19 @@ where
 
         // Snap to edge toggle
         let snap_row = row()
-            .push(text("Snap to Edge").size(14).width(Length::Fill))
+            .push(text::body("Snap to Edge").width(Length::Fill))
             .push(toggler(position.snap_to_edge).on_toggle(move |_| on_snap_toggle.clone()))
-            .spacing(8.0)
+            .spacing(Spacing::xs())
             .align_y(cosmic::iced::Alignment::Center);
 
         content = content.push(snap_row);
 
         // Snap threshold (only if snap enabled)
         if position.snap_to_edge {
-            content = content
-                .push(text(format!("Snap Threshold: {} px", position.snap_threshold)).size(14));
+            content = content.push(text::body(format!(
+                "Snap Threshold: {} px",
+                position.snap_threshold
+            )));
 
             let threshold_slider = slider(
                 5..=100,
@@ -146,7 +148,7 @@ where
     // Preview button
     content = content.push(divider::horizontal::default());
 
-    let preview_button = button_standard("Preview Position")
+    let preview_button = button::standard("Preview Position")
         .on_press(on_preview.clone())
         .width(Length::Fill);
 
@@ -156,35 +158,51 @@ where
 }
 
 /// Create a position mode button
+///
+/// Uses suggested style for selected button, standard for unselected
 fn mode_button<'a, Message>(
     label: &'a str,
-    _is_selected: bool,
+    is_selected: bool,
     on_press: impl Fn(PositionMode) -> Message + 'a,
     mode: PositionMode,
 ) -> Element<'a, Message>
 where
     Message: Clone + 'a + 'static,
 {
-    let btn = button_standard(label)
-        .on_press(on_press(mode))
-        .padding([6, 12]);
+    let btn = if is_selected {
+        button::suggested(label)
+            .on_press(on_press(mode))
+            .padding([Spacing::xxs(), Spacing::s()])
+    } else {
+        button::standard(label)
+            .on_press(on_press(mode))
+            .padding([Spacing::xxs(), Spacing::s()])
+    };
 
     btn.into()
 }
 
 /// Create an anchor point button
+///
+/// Uses suggested style for selected button, standard for unselected
 fn anchor_button<'a, Message>(
     label: &'a str,
-    _is_selected: bool,
+    is_selected: bool,
     on_press: impl Fn(PanelAnchor) -> Message + 'a,
     anchor: PanelAnchor,
 ) -> Element<'a, Message>
 where
     Message: Clone + 'a + 'static,
 {
-    let btn = button_standard(label)
-        .on_press(on_press(anchor))
-        .padding([6, 12]);
+    let btn = if is_selected {
+        button::suggested(label)
+            .on_press(on_press(anchor))
+            .padding([Spacing::xxs(), Spacing::s()])
+    } else {
+        button::standard(label)
+            .on_press(on_press(anchor))
+            .padding([Spacing::xxs(), Spacing::s()])
+    };
 
     btn.into()
 }

@@ -1,15 +1,17 @@
 // Notification list widget
 //
 // Displays a scrollable list of notifications with empty state handling.
+// Follows COSMIC design patterns for consistent appearance.
 
 use std::collections::{HashMap, VecDeque};
 
 use cosmic::iced::Length;
-use cosmic::widget::{column, container, scrollable, text};
+use cosmic::widget::{column, container, icon, scrollable, text};
 use cosmic::Element;
 
 use crate::dbus::Notification;
 use crate::ui::animation::NotificationAnimation;
+use crate::ui::theme::{ComponentSize, Spacing};
 use crate::ui::widgets::notification_card;
 
 /// Create a notification list widget
@@ -31,14 +33,19 @@ where
     Message: Clone + 'a + 'static,
 {
     if notifications.is_empty() {
-        // Empty state
+        // Empty state with COSMIC styling
+        let empty_icon: cosmic::widget::Icon = icon::from_name("notification-symbolic")
+            .size(ComponentSize::NOTIFICATION_ICON)
+            .into();
+
         return container(
             column()
-                .push(text("No Notifications").size(16))
-                .push(text("You're all caught up!").size(12))
-                .spacing(8.0)
+                .push(empty_icon)
+                .push(text::title3("No Notifications"))
+                .push(text::body("You're all caught up!"))
+                .spacing(Spacing::s())
                 .align_x(cosmic::iced::Alignment::Center)
-                .padding(32.0),
+                .padding(Spacing::xl()),
         )
         .width(Length::Fill)
         .height(Length::Fill)
@@ -50,7 +57,7 @@ where
     // Build list of notification cards using functional approach
     // More efficient than repeated push() calls
     let cards = notifications.iter().enumerate().fold(
-        column().spacing(8.0).padding(8.0),
+        column().spacing(Spacing::xs()).padding(Spacing::xs()),
         |col, (index, notification)| {
             let is_selected = selected_index == Some(index);
             // Only pass action index if this notification is selected

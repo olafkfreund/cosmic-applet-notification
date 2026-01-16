@@ -152,6 +152,7 @@ fn calculate_offset(config: &PopupPosition) -> (i32, i32) {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
 

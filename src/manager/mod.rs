@@ -150,10 +150,10 @@ impl NotificationManager {
         // Enforce maximum active notifications (FIFO)
         // Evicted notifications go to history if not transient
         while self.active_notifications.len() > MAX_ACTIVE_NOTIFICATIONS {
-            if let Some(evicted) = self.active_notifications.pop_front()
-                && !evicted.is_transient()
-            {
-                self.add_to_history(evicted);
+            if let Some(evicted) = self.active_notifications.pop_front() {
+                if !evicted.is_transient() {
+                    self.add_to_history(evicted);
+                }
             }
         }
 

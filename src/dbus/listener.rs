@@ -282,6 +282,7 @@ fn parse_notification_signal(message: zbus::Message) -> Result<Notification, Not
     }
 
     // Extract and destructure D-Bus signal parameters (8 parameters in Notify signal)
+    #[allow(clippy::type_complexity)]
     let (
         app_name,
         replaces_id,

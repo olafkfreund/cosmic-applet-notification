@@ -2,15 +2,14 @@
 //
 // Displays notification filter settings and controls for managing
 // per-application filters, urgency levels, and Do Not Disturb mode.
+// Follows COSMIC design patterns for consistent appearance.
 
 use cosmic::iced::Length;
-use cosmic::widget::{column, container, divider, row, text, toggler};
+use cosmic::widget::{button, column, container, divider, row, text, toggler};
 use cosmic::Element;
 
-// Import button constructors
-use cosmic::widget::button::standard as button_standard;
-
 use crate::config::AppletConfig;
+use crate::ui::theme::Spacing;
 
 /// Create a filter settings widget
 ///
@@ -27,27 +26,29 @@ pub fn filter_settings<'a, Message>(
 where
     Message: Clone + 'a + 'static,
 {
-    let mut content = column().spacing(12.0).padding(16.0);
+    let mut content = column().spacing(Spacing::s()).padding(Spacing::m());
 
     // Section header
-    content = content.push(text("Notification Settings").size(16));
+    content = content.push(text::title3("Notification Settings"));
 
-    // Keyboard shortcuts hint
-    content = content.push(text("Shortcuts: Esc=Close, Ctrl+D=DND, Ctrl+1/2/3=Urgency").size(10));
+    // Keyboard shortcuts hint (using caption instead of too-small size 10)
+    content = content.push(text::caption(
+        "Shortcuts: Esc=Close, Ctrl+D=DND, Ctrl+1/2/3=Urgency",
+    ));
 
     content = content.push(divider::horizontal::default());
 
     // Do Not Disturb toggle
     let dnd_row = row()
-        .push(text("Do Not Disturb").size(14).width(Length::Fill))
+        .push(text::body("Do Not Disturb").width(Length::Fill))
         .push(toggler(config.do_not_disturb).on_toggle(move |_| on_toggle_dnd.clone()))
-        .spacing(8.0)
+        .spacing(Spacing::xs())
         .align_y(cosmic::iced::Alignment::Center);
 
     content = content.push(dnd_row);
 
     // Urgency level selector
-    content = content.push(text("Minimum Urgency Level").size(14));
+    content = content.push(text::title4("Minimum Urgency Level"));
 
     let urgency_buttons = row()
         .push(urgency_button(
@@ -68,7 +69,7 @@ where
             on_urgency_change.clone(),
             2,
         ))
-        .spacing(8.0);
+        .spacing(Spacing::xs());
 
     content = content.push(urgency_buttons);
 
@@ -76,7 +77,7 @@ where
     if !config.app_filters.is_empty() {
         content = content.push(divider::horizontal::default());
 
-        content = content.push(text("App Filters").size(14));
+        content = content.push(text::title4("App Filters"));
 
         // Sort apps alphabetically for consistent display
         let mut apps: Vec<(&String, &bool)> = config.app_filters.iter().collect();
@@ -85,13 +86,20 @@ where
         for (app_name, is_blocked) in apps {
             let app_name_clone = app_name.clone();
             let on_app_filter_toggle_clone = on_app_filter_toggle.clone();
+
+            let status_text = if *is_blocked {
+                text::body("Blocked")
+            } else {
+                text::body("Allowed")
+            };
+
             let app_row = row()
-                .push(text(app_name).size(12).width(Length::Fill))
-                .push(text(if *is_blocked { "Blocked" } else { "Allowed" }).size(12))
+                .push(text::body(app_name).width(Length::Fill))
+                .push(status_text)
                 .push(toggler(!is_blocked).on_toggle(move |enabled| {
                     on_app_filter_toggle_clone(app_name_clone.clone(), enabled)
                 }))
-                .spacing(8.0)
+                .spacing(Spacing::xs())
                 .align_y(cosmic::iced::Alignment::Center);
 
             content = content.push(app_row);
@@ -102,18 +110,26 @@ where
 }
 
 /// Create an urgency level button
+///
+/// Uses suggested style for selected button, standard for unselected
 fn urgency_button<'a, Message>(
     label: &'a str,
-    _is_selected: bool,
+    is_selected: bool,
     on_press: impl Fn(u8) -> Message + 'a,
     level: u8,
 ) -> Element<'a, Message>
 where
     Message: Clone + 'a + 'static,
 {
-    let btn = button_standard(label)
-        .on_press(on_press(level))
-        .padding([6, 12]);
+    let btn = if is_selected {
+        button::suggested(label)
+            .on_press(on_press(level))
+            .padding([Spacing::xxs(), Spacing::s()])
+    } else {
+        button::standard(label)
+            .on_press(on_press(level))
+            .padding([Spacing::xxs(), Spacing::s()])
+    };
 
     btn.into()
 }

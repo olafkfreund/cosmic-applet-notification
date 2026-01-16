@@ -113,9 +113,8 @@ mod tests {
     #[tokio::test]
     #[ignore] // Requires XDG portal to be available
     async fn test_detect_prefers_reduced_motion() {
-        let result = detect_prefers_reduced_motion().await;
-        // Should not panic and return a valid boolean
-        assert!(result == true || result == false);
+        let _result = detect_prefers_reduced_motion().await;
+        // Test passes if function returns without panicking
     }
 
     #[tokio::test]
