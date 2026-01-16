@@ -11,12 +11,12 @@ pub mod types;
 
 // Re-export commonly used types
 pub use types::{
-    ImageData, Notification, NotificationAction, NotificationHints, Urgency, parse_actions,
-    parse_hints,
+    parse_actions, parse_hints, ImageData, Notification, NotificationAction, NotificationHints,
+    Urgency,
 };
 
 // Re-export listener subscription function
 pub use listener::subscribe;
 
 // Re-export sender functions
-pub use sender::{CloseReason, send_action_invoked, send_notification_closed};
+pub use sender::{send_action_invoked, send_notification_closed, CloseReason};

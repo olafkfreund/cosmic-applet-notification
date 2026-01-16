@@ -2,9 +2,9 @@
 //
 // Displays a single notification with app icon, summary, body, timestamp, and dismiss button.
 
-use cosmic::Element;
 use cosmic::iced::Length;
 use cosmic::widget::{button, column, container, row, text};
+use cosmic::Element;
 
 // Import button constructors
 use cosmic::widget::button::link as button_link;
@@ -13,7 +13,7 @@ use cosmic::widget::button::suggested as button_suggested;
 
 use crate::dbus::Notification;
 use crate::ui::animation::NotificationAnimation;
-use crate::ui::url_parser::{TextSegment, parse_text};
+use crate::ui::url_parser::{parse_text, TextSegment};
 
 /// Create a notification card widget
 ///

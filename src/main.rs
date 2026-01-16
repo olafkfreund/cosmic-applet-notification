@@ -263,7 +263,8 @@ impl Application for NotificationApplet {
 
         // Detect prefers-reduced-motion accessibility setting on startup
         let detect_task = Task::future(async {
-            let prefers_reduced = cosmic_applet_notifications::accessibility::detect_prefers_reduced_motion().await;
+            let prefers_reduced =
+                cosmic_applet_notifications::accessibility::detect_prefers_reduced_motion().await;
             cosmic::Action::App(Message::UpdatePrefersReducedMotion(prefers_reduced))
         });
 

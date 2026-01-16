@@ -4,9 +4,9 @@
 
 use std::collections::{HashMap, VecDeque};
 
-use cosmic::Element;
 use cosmic::iced::Length;
 use cosmic::widget::{column, container, scrollable, text};
+use cosmic::Element;
 
 use crate::dbus::Notification;
 use crate::ui::animation::NotificationAnimation;

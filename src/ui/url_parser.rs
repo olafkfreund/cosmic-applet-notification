@@ -310,10 +310,8 @@ mod tests {
         let segments = parse_text("Download from ftp://files.example.com/file.zip");
 
         assert!(segments.len() >= 2);
-        assert!(
-            segments
-                .iter()
-                .any(|s| matches!(s, TextSegment::Link { url, .. } if url.contains("ftp://")))
-        );
+        assert!(segments
+            .iter()
+            .any(|s| matches!(s, TextSegment::Link { url, .. } if url.contains("ftp://"))));
     }
 }

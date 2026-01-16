@@ -84,10 +84,7 @@ pub async fn subscribe_reduced_motion_changes(
 
     // Subscribe to changes to the reduced-motion setting
     let stream = settings
-        .receive_setting_changed_with_args::<u32>(
-            "org.freedesktop.appearance",
-            "reduced-motion",
-        )
+        .receive_setting_changed_with_args::<u32>("org.freedesktop.appearance", "reduced-motion")
         .await?;
 
     // Map the u32 values to bool
@@ -131,10 +128,8 @@ mod tests {
 
         // If successful, we can take one item (or timeout)
         if let Ok(mut stream) = stream {
-            let timeout = tokio::time::timeout(
-                std::time::Duration::from_millis(100),
-                stream.next(),
-            );
+            let timeout =
+                tokio::time::timeout(std::time::Duration::from_millis(100), stream.next());
             // Either times out (ok) or returns a value (also ok)
             let _ = timeout.await;
         }
