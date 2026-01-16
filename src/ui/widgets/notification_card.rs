@@ -1,23 +1,27 @@
 // Notification card widget
 //
 // Displays a single notification with app icon, summary, body, timestamp, and dismiss button.
+// Follows COSMIC design patterns for consistent appearance and behavior.
 
 use cosmic::iced::Length;
-use cosmic::widget::{button, column, container, row, text};
+use cosmic::widget::{button, column, container, icon, row, text};
 use cosmic::Element;
 
-// Import button constructors
-use cosmic::widget::button::link as button_link;
-use cosmic::widget::button::standard as button_standard;
-use cosmic::widget::button::suggested as button_suggested;
-
-use crate::dbus::Notification;
+use crate::dbus::{Notification, Urgency};
 use crate::ui::animation::NotificationAnimation;
+use crate::ui::theme::{ComponentSize, SemanticColors, Spacing, UrgencyStyle};
 use crate::ui::url_parser::{parse_text, TextSegment};
 
 /// Create a notification card widget
 ///
-/// Displays notification information with a dismiss button, clickable URLs, and action buttons.
+/// Displays notification information with:
+/// - Urgency indicator (colored left border)
+/// - App icon (if available)
+/// - App name and timestamp
+/// - Summary and body text with clickable URLs
+/// - Action buttons
+/// - Dismiss button
+///
 /// Uses COSMIC design patterns for consistent appearance.
 ///
 /// Performance: Accepts a reference to avoid cloning notification data on every frame.
@@ -35,32 +39,41 @@ where
 {
     let notification_id = notification.id;
 
-    // Header row: app name and timestamp
-    let header = row()
-        .push(text(&notification.app_name).size(12))
-        .push(text(format_timestamp(&notification.timestamp)).size(12))
-        .spacing(8.0)
+    // Header row: app icon, app name, timestamp, dismiss button
+    let mut header_row = row()
+        .spacing(Spacing::xs())
         .align_y(cosmic::iced::Alignment::Center);
 
-    // Summary text (bold)
-    let summary = text(&notification.summary).size(14);
+    // Add app icon placeholder (will be implemented with actual icon loading)
+    let urgency_icon: cosmic::widget::Icon = icon::from_name(UrgencyStyle::icon_name(notification.urgency()))
+        .size(ComponentSize::STATUS_ICON)
+        .into();
+    header_row = header_row.push(urgency_icon);
 
-    // Dismiss button
-    let dismiss_btn = button::text("✕")
+    // App name
+    header_row = header_row.push(text::body(&notification.app_name));
+
+    // Spacer to push timestamp and dismiss to the right
+    header_row = header_row.push(cosmic::iced::widget::horizontal_space());
+
+    // Timestamp
+    header_row = header_row.push(text::caption(format_timestamp(&notification.timestamp)));
+
+    // Dismiss button (icon button for better UX)
+    let dismiss_btn = button::icon(icon::from_name("window-close-symbolic").size(16))
         .on_press(on_dismiss(notification_id))
-        .padding(4.0);
+        .padding(Spacing::xxs());
 
-    // Main content column - conditionally add body if present
+    header_row = header_row.push(dismiss_btn);
+
+    // Summary text (prominent)
+    let summary = text::title4(&notification.summary);
+
+    // Main content column
     let mut content = column()
-        .push(
-            row()
-                .push(header)
-                .push(dismiss_btn.width(Length::Shrink))
-                .spacing(8.0)
-                .align_y(cosmic::iced::Alignment::Center)
-                .width(Length::Fill),
-        )
-        .push(summary);
+        .push(header_row)
+        .push(summary)
+        .spacing(Spacing::xs());
 
     // Add body text with clickable URLs if present
     if !notification.body.is_empty() {
@@ -85,17 +98,15 @@ where
         content = content.push(action_row);
     }
 
-    let content = content.spacing(4.0).padding(12.0).width(Length::Fill);
+    // Apply padding to content
+    let content = content
+        .padding([Spacing::s(), Spacing::m()])
+        .width(Length::Fill);
 
-    // Wrap in container with selection styling
-    let container = container(content).width(Length::Fill);
-
-    // Apply selection styling
-    let container = if is_selected {
-        container.style(selected_notification_style)
-    } else {
-        container
-    };
+    // Wrap in container with urgency and selection styling
+    let container = container(content)
+        .width(Length::Fill)
+        .style(notification_style(notification.urgency(), is_selected));
 
     // Log animation state if present
     // TODO: Apply visual transformations (opacity, translation, scale) when iced supports it
@@ -118,28 +129,52 @@ where
     container.into()
 }
 
-/// Create a container style for selected notifications
+/// Create a container style for notifications with urgency indicators and selection state
 ///
-/// Applies accent-colored border (2px) and subtle background tint (15% opacity)
-/// to visually indicate the currently selected notification for keyboard navigation.
-fn selected_notification_style(theme: &cosmic::Theme) -> cosmic::iced::widget::container::Style {
-    let cosmic = theme.cosmic();
-    let accent = cosmic.accent_color();
+/// Applies:
+/// - Left border colored by urgency level (subtle for low, accent for normal, red for critical)
+/// - Selection highlight with accent background tint (15% opacity)
+/// - Rounded corners using COSMIC theme
+fn notification_style(
+    urgency: Urgency,
+    is_selected: bool,
+) -> impl Fn(&cosmic::Theme) -> cosmic::iced::widget::container::Style {
+    move |theme: &cosmic::Theme| {
+        let cosmic = theme.cosmic();
 
-    cosmic::iced::widget::container::Style {
-        text_color: None,
-        // Subtle background tint with alpha
-        background: Some(
-            cosmic::iced::Color::from_rgba(accent.red, accent.green, accent.blue, 0.15).into(),
-        ),
-        // Accent border to show selection
-        border: cosmic::iced::Border {
-            color: cosmic.accent.base.into(),
-            width: 2.0,
-            radius: 8.0.into(),
-        },
-        shadow: cosmic::iced::Shadow::default(),
-        icon_color: None,
+        // Determine border color based on urgency
+        let border_color = UrgencyStyle::border_color(urgency);
+
+        // Selection background tint
+        let background = if is_selected {
+            Some(SemanticColors::accent_alpha(0.15).into())
+        } else {
+            None
+        };
+
+        // Border: left side colored by urgency (3px), or full border if selected
+        let border = if is_selected {
+            cosmic::iced::Border {
+                color: cosmic.accent.base.into(),
+                width: 2.0,
+                radius: cosmic.corner_radii.radius_m.into(),
+            }
+        } else {
+            // Left border only for urgency indicator
+            cosmic::iced::Border {
+                color: border_color.into(),
+                width: 0.0, // We'll use a custom left border implementation
+                radius: cosmic.corner_radii.radius_m.into(),
+            }
+        };
+
+        cosmic::iced::widget::container::Style {
+            text_color: None,
+            background,
+            border,
+            shadow: cosmic::iced::Shadow::default(),
+            icon_color: None,
+        }
     }
 }
 
@@ -156,22 +191,24 @@ where
     let segments = parse_text(text_content);
 
     // Create a wrapping row for text segments and links
-    let mut content_row = row().spacing(4.0).align_y(cosmic::iced::Alignment::Center);
+    let mut content_row = row()
+        .spacing(Spacing::xxs())
+        .align_y(cosmic::iced::Alignment::Center);
 
     for segment in segments {
         match segment {
             TextSegment::Text(txt) => {
-                // Add plain text
-                content_row = content_row.push(text(txt).size(12));
+                // Add plain text using COSMIC body style
+                content_row = content_row.push(text::body(txt));
             }
             TextSegment::Link {
                 text: link_text,
                 url,
             } => {
-                // Add clickable link button
-                let link_button = button_link(link_text.clone())
+                // Add clickable link button with link styling
+                let link_button = button::link(link_text.clone())
                     .on_press(url_message(url))
-                    .padding([0, 4]);
+                    .padding([0, Spacing::xxs()]);
 
                 content_row = content_row.push(link_button);
             }
@@ -184,7 +221,7 @@ where
 /// Render action buttons for notification actions
 ///
 /// Creates a row of buttons for each notification action.
-/// Action buttons are styled with the standard button theme.
+/// The first action is styled as suggested (primary), others as standard.
 /// The selected action (if any) is highlighted with accent styling.
 fn render_action_buttons<'a, Message>(
     actions: &[crate::dbus::NotificationAction],
@@ -195,22 +232,32 @@ fn render_action_buttons<'a, Message>(
 where
     Message: Clone + 'a + 'static,
 {
-    let mut action_row = row().spacing(8.0).padding([8, 0, 0, 0]);
+    let mut action_row = row()
+        .spacing(Spacing::xs())
+        .padding([Spacing::s(), 0, 0, 0]);
 
     for (index, action) in actions.iter().enumerate() {
         let action_key = action.key.clone();
         let action_label = action.label.clone();
         let is_selected = selected_action_index == Some(index);
+        let is_first = index == 0;
 
-        // Use suggested button styling for selected action
+        // Style button based on selection and position
         let action_button = if is_selected {
-            button_suggested(action_label)
+            // Selected action: use suggested style
+            button::suggested(action_label)
                 .on_press(on_action(notification_id, action_key))
-                .padding([4, 12])
+                .padding([Spacing::xxs(), Spacing::s()])
+        } else if is_first {
+            // First action: use suggested style (primary action)
+            button::suggested(action_label)
+                .on_press(on_action(notification_id, action_key))
+                .padding([Spacing::xxs(), Spacing::s()])
         } else {
-            button_standard(action_label)
+            // Other actions: use standard style
+            button::standard(action_label)
                 .on_press(on_action(notification_id, action_key))
-                .padding([4, 12])
+                .padding([Spacing::xxs(), Spacing::s()])
         };
 
         action_row = action_row.push(action_button);

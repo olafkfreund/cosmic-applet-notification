@@ -4,5 +4,6 @@
 
 pub mod animation;
 pub mod positioning;
+pub mod theme;
 pub mod url_parser;
 pub mod widgets;

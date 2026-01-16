@@ -187,22 +187,22 @@ impl NotificationApplet {
         }
 
         // Fix out-of-bounds notification selection
-        if let Some(idx) = self.selected_notification_index
-            && idx >= notification_count
-        {
-            self.selected_notification_index = Some(notification_count - 1);
-            self.clear_action_selection();
+        if let Some(idx) = self.selected_notification_index {
+            if idx >= notification_count {
+                self.selected_notification_index = Some(notification_count - 1);
+                self.clear_action_selection();
+            }
         }
 
         // Fix out-of-bounds action selection
-        if let Some(notif_idx) = self.selected_notification_index
-            && let Some(action_idx) = self.selected_action_index
-        {
-            let active_notifications = self.manager.get_active_notifications();
-            if let Some(notification) = active_notifications.get(notif_idx)
-                && action_idx >= notification.actions.len()
-            {
-                self.clear_action_selection();
+        if let Some(notif_idx) = self.selected_notification_index {
+            if let Some(action_idx) = self.selected_action_index {
+                let active_notifications = self.manager.get_active_notifications();
+                if let Some(notification) = active_notifications.get(notif_idx) {
+                    if action_idx >= notification.actions.len() {
+                        self.clear_action_selection();
+                    }
+                }
             }
         }
     }
@@ -805,11 +805,12 @@ impl Application for NotificationApplet {
 
                         // Number keys (1-9) for quick action invocation
                         Key::Character(c) if !modifiers.control() && !modifiers.alt() => {
-                            if self.popup_id.is_some()
-                                && let Some(digit) = c.chars().next().and_then(|ch| ch.to_digit(10))
-                                && (1..=9).contains(&digit)
-                            {
-                                return self.update(Message::InvokeQuickAction(digit as u8));
+                            if self.popup_id.is_some() {
+                                if let Some(digit) = c.chars().next().and_then(|ch| ch.to_digit(10)) {
+                                    if (1..=9).contains(&digit) {
+                                        return self.update(Message::InvokeQuickAction(digit as u8));
+                                    }
+                                }
                             }
                         }
 
